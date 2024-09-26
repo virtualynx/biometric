@@ -4,9 +4,6 @@
  * - fingerprint.sdk.min.js
  */
 
-
-let currentFormat = Fingerprint.SampleFormat.Intermediate;
-
 let FingerprintSdkTest = (function () {
     function FingerprintSdkTest() {
         let _instance = this;
@@ -43,7 +40,7 @@ let FingerprintSdkTest = (function () {
         let _instance = this;
         showMessage("");
         this.operationToRestart = this.startCapture;
-        this.sdk.startAcquisition(currentFormat, "").then(function () {
+        this.sdk.startAcquisition(Fingerprint.SampleFormat.Intermediate, "").then(function () {
             _instance.acquisitionStarted = true;
 
             //Disabling start once started
@@ -383,7 +380,7 @@ function serverEnroll(){
         }
     };
 
-    xhttp.open("POST", "/src/core/enroll.php", true);
+    xhttp.open("POST", "./src/core/enroll.php", true);
     xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xhttp.send(payload);
 }
@@ -423,7 +420,7 @@ function serverIdentify() {
         }
     };
 
-    xhttp.open("POST", "/src/core/verify.php", true);
+    xhttp.open("POST", "./src/core/verify.php", true);
     xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xhttp.send(payload);
 }
