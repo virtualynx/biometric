@@ -9,9 +9,8 @@
 
 namespace fingerprint;
 
-require("../core/querydb.php");
-require_once("../core/helpers/helpers.php");
-
+require("./querydb.php");
+require_once("./helpers/helpers.php");
 
 if(!empty($_POST["data"])){
     $user_data = json_decode($_POST["data"]);

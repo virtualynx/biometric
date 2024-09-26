@@ -8,8 +8,8 @@
 
 namespace fingerprint;
 
-require_once("../core/helpers/helpers.php");
-require_once("../core/querydb.php");
+require_once("./helpers/helpers.php");
+require_once("./querydb.php");
 
 if(!empty($_POST["data"])) {
     $user_data = json_decode($_POST["data"]);
