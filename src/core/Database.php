@@ -13,14 +13,34 @@ use mysqli;
 date_default_timezone_set("Asia/Jakarta");
 
 class Database {
-    private const host = "localhost";
-    private const user = "root";
-    private const password = "";
-    private const database = "biometric";
+    // private const host = "localhost";
+    // private const user = "root";
+    // private const password = "";
+    // private const database = "biometric";
+
+    private $host = "localhost";
+    private $user = "root";
+    private $password = "";
+    private $database = "biometric";
+
     private $conn;
 
     function __construct(){
-        $this->conn = new mysqli(self::host, self::user, self::password, self::database);
+        // $this->conn = new mysqli(self::host, self::user, self::password, self::database);
+
+        $env = parse_ini_file(dirname(__FILE__).'/../../.env1');
+
+        if(empty($env)){
+            http_response_code(500);
+            echo 'Missing .env file';
+            exit;
+        }
+
+        $this->host = $env['BIOMETRIC_DB_HOST'];
+        $this->user = $env['BIOMETRIC_DB_USER'];
+        $this->password = $env['BIOMETRIC_DB_PASSWORD'];
+        $this->database = $env['BIOMETRIC_DB_NAME'];
+        $this->conn = new mysqli($this->host, $this->user, $this->password, $this->database);
         if (mysqli_connect_errno()) {
             printf("Connection Failed: %s\n",  mysqli_connect_errno());
             exit();
@@ -28,7 +48,9 @@ class Database {
     }
 
     function __destruct() {
-        $this->conn->close();
+        if(!empty($this->conn)){
+            $this->conn->close();
+        }
     }
 
     function query($query){
