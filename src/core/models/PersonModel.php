@@ -7,16 +7,19 @@ use stdClass;
 require_once(dirname(__FILE__)."/../Database.php");
 require_once(dirname(__FILE__)."/PhotoModel.php");
 require_once(dirname(__FILE__)."/DocumentModel.php");
+require_once(dirname(__FILE__)."/FileUploadModel.php");
 
 class PersonModel {
     private $db;
     private $photoModel;
     private $documentModel;
+    private $fileUploadModel;
 
     public function __construct(){
         $this->db = new Database();
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
+        $this->fileUploadModel = new FileUploadModel();
     }
 
     public function list(): array{
@@ -42,7 +45,19 @@ class PersonModel {
         $person = json_decode(json_encode($persons[0]), true);
         $person['biometric_status'] = $this->getBiometricStatus($nik);
         $person['documents'] = $this->documentModel->get($nik);
-        $person['photos'] = $this->photoModel->get($nik);
+        $photos = $this->photoModel->get($nik);
+        $person['photos'] = $photos;
+        $bioPhoto = null;
+        foreach($photos as $row){
+            if($row->type == 'biometric'){
+                $bioPhoto = $row;
+                break;
+            }
+        }
+        if(!empty($bioPhoto)){
+            $bioPhoto = $this->fileUploadModel->getBase64String($bioPhoto->filename, $bioPhoto->photo_path);
+        }
+        $person['photo'] = $bioPhoto;
 
         return json_decode(json_encode($person));
     }

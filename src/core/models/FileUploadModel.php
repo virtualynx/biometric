@@ -12,28 +12,14 @@ class FileUploadModel {
         $this->env = new EnvFileModel();
 
         $this->basePath = dirname(__FILE__).'/../../../';
-        $this->uploadDir = $this->env->get('BIOMETRIC_UPLOAD_DIR');
-    }
-
-    public function upload_array(array $filesArray, string $path = null): array{
-        $result = [];
-
-
-
-        return $result;
+        $this->uploadDir = $this->removesTrailingSlash($this->env->get('BIOMETRIC_UPLOAD_DIR'));
     }
 
     public function upload(array $files, string $filename = null, string $path = null): stdClass{
         $savePath = $this->uploadDir;
-        if(substr_compare($savePath, '/', -strlen('/')) === 0){
-            $savePath = substr($savePath, 0, strlen($savePath)-1);
-        }
 
         if(!empty($path)){
-            $savePath = $savePath.'/'.$path;
-            if(substr_compare($savePath, '/', -strlen('/')) === 0){
-                $savePath = substr($savePath, 0, strlen($savePath)-1);
-            }
+            $savePath = $this->removesTrailingSlash($savePath.'/'.$path);
         }
 
         // echo "<b>File to be uploaded: </b>" . $files["name"] . "<br>";
@@ -72,5 +58,67 @@ class FileUploadModel {
             'filename' => $filename,
             'path' => $savePath.'/'.$filename
         ]));
+    }
+
+    public function downloadFile(string $filename, string $filepath){
+        $loadPath = $this->basePath.$filepath;
+
+        if(!is_file($loadPath)){
+            throw new \Exception("File $filepath does not exists");
+        }
+
+        $ext = strrchr($filename, ".");
+        $type = '';
+        switch($ext){
+            case ".zip": $type = "application/zip"; break;
+            case ".txt": $type = "text/plain"; break;
+            case ".pdf": $type = "application/pdf"; break;
+            case('gif') : $type = "image/gif";break;
+            case('pnggif') : $type = "image/png";break;
+            case('jpg') : $type = "image/jpeg";break;
+            default: $type = "application/octet-stream"; break;
+        }
+
+        header("Content-Description: File Transfer");
+        header("Content-Type: $type");
+        header("Content-Transfer-Encoding: binary");
+        header("Content-disposition: attachment; filename=$filename");
+        header("Content-Length: ".filesize($loadPath));
+
+        echo file_get_contents($loadPath);
+    }
+
+    public function getBase64String(string $filename, string $filepath){
+        $loadPath = $this->basePath.$filepath;
+
+        if(!is_file($loadPath)){
+            throw new \Exception("File $filepath does not exists");
+        }
+
+        $ext = strrchr($filename, ".");
+        $type = '';
+        switch($ext){
+            case ".zip": $type = "application/zip"; break;
+            case ".txt": $type = "text/plain"; break;
+            case ".pdf": $type = "application/pdf"; break;
+            case('gif') : $type = "image/gif";break;
+            case('pnggif') : $type = "image/png";break;
+            case('jpg') : $type = "image/jpeg";break;
+            default: $type = "application/octet-stream"; break;
+        }
+        
+        $type = pathinfo($loadPath, PATHINFO_EXTENSION);
+        $data = file_get_contents($loadPath);
+        $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+
+        return $base64;
+    }
+
+    private function removesTrailingSlash(string $path){
+        if(substr_compare($path, '/', -strlen('/')) === 0){
+            $path = substr($path, 0, strlen($path)-1);
+        }
+
+        return $path;
     }
 }
