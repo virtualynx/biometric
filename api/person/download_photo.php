@@ -28,4 +28,8 @@ if(empty($file)){
 }
 
 $fu = new FileUploadModel();
-$fu->downloadFile($_GET['filename'], $file->photo_path);
+if(!empty($_GET['is_base64']) && filter_var($_GET['is_base64'], FILTER_VALIDATE_BOOLEAN) == true){
+    echo $fu->getBase64String($_GET['filename'], $file->photo_path);
+}else{
+    $fu->downloadFile($_GET['filename'], $file->photo_path);
+}
