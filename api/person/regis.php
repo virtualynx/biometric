@@ -52,38 +52,30 @@ if(empty($person)){
 $fu = new FileUploadModel();
 
 if(!empty($_FILES["photo"])){
-    try{
-        $filedata = $fu->upload($_FILES["photo"], $_POST['nik'], 'profile/');
+    $filedata = $fu->upload($_FILES["photo"], $_POST['nik'], 'profile/');
 
-        $phm = new PhotoModel();
-        $phm->add($_POST['nik'], $filedata->filename, $filedata->path);
-    }catch(\Exception $e){
-        throw $e;
-    }
+    $phm = new PhotoModel();
+    $phm->add($_POST['nik'], $filedata->filename, $filedata->path);
 }
 
 if(!empty($_FILES["documents"])){
-    try{
-        $files = [];
-        $filecount = count($_FILES["documents"]['name']);
+    $files = [];
+    $filecount = count($_FILES["documents"]['name']);
 
-        for($a=0; $a<$filecount; $a++){
-            $files []= [
-                'name' => $_FILES["documents"]['name'][$a],
-                'type' => $_FILES["documents"]['type'][$a],
-                'tmp_name' => $_FILES["documents"]['tmp_name'][$a],
-                'error' => $_FILES["documents"]['error'][$a],
-                'size' => $_FILES["documents"]['size'][$a]
-            ];
-        }
+    for($a=0; $a<$filecount; $a++){
+        $files []= [
+            'name' => $_FILES["documents"]['name'][$a],
+            'type' => $_FILES["documents"]['type'][$a],
+            'tmp_name' => $_FILES["documents"]['tmp_name'][$a],
+            'error' => $_FILES["documents"]['error'][$a],
+            'size' => $_FILES["documents"]['size'][$a]
+        ];
+    }
 
-        $dcm = new DocumentModel();
-        foreach($files as $row){
-            $filedata = $fu->upload($row, null, 'documents/'.$_POST['nik']);
-            $dcm->add($_POST['nik'], $filedata->filename, $filedata->path);
-        }
-    }catch(\Exception $e){
-        throw $e;
+    $dcm = new DocumentModel();
+    foreach($files as $row){
+        $filedata = $fu->upload($row, null, 'documents/'.$_POST['nik']);
+        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path);
     }
 }
 
