@@ -22,14 +22,15 @@ class Database {
     private $conn;
 
     function __construct(){
-        // $this->conn = new mysqli(self::host, self::user, self::password, self::database);
-
         $env = new EnvFileModel();
 
         $this->host = $env->get('BIOMETRIC_DB_HOST');
         $this->user = $env->get('BIOMETRIC_DB_USER');
         $this->password = $env->get('BIOMETRIC_DB_PASSWORD');
         $this->database = $env->get('BIOMETRIC_DB_NAME');
+
+        mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);
+
         $this->conn = new mysqli($this->host, $this->user, $this->password, $this->database);
         if (mysqli_connect_errno()) {
             printf("Connection Failed: %s\n",  mysqli_connect_errno());
@@ -45,8 +46,8 @@ class Database {
 
     function query($query){
         $results = [];
-
         $rs = mysqli_query($this->conn, $query);
+
         while($row = mysqli_fetch_assoc($rs)) {
             $results []= $row;
         }
@@ -58,5 +59,15 @@ class Database {
         $rs = mysqli_query($this->conn, $query);
 
         return $rs;
+    }
+
+    function beginTransaction(){
+        $this->conn->autocommit(FALSE);
+    }
+
+    function endTransaction(){
+        if($this->conn->commit() == false){
+            $this->conn->rollback();
+        }
     }
 }
