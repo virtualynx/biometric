@@ -15,7 +15,7 @@ if(empty($_POST['nik'])){
 $pm = new PersonModel();
 
 try{
-    $person = $pm->getInfo($_POST['nik']);
+    $person = $pm->get($_POST['nik']);
 }catch(\Exception $e){
     echo $e->getMessage();
     exit;

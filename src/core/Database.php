@@ -1,13 +1,9 @@
 <?php
-/*
- * Author: Dahir Muhammad Dahir
- * Date: 26-April-2020 12:05 AM
- * About: I will tell you later
- */
-
-
 namespace biometric\src\core;
 
+require_once(dirname(__FILE__)."/models/EnvFileModel.php");
+
+use biometric\src\core\models\EnvFileModel;
 use mysqli;
 
 date_default_timezone_set("Asia/Jakarta");
@@ -28,18 +24,12 @@ class Database {
     function __construct(){
         // $this->conn = new mysqli(self::host, self::user, self::password, self::database);
 
-        $env = parse_ini_file(dirname(__FILE__).'/../../.env');
+        $env = new EnvFileModel();
 
-        if(empty($env)){
-            http_response_code(500);
-            echo 'Missing .env file';
-            exit;
-        }
-
-        $this->host = $env['BIOMETRIC_DB_HOST'];
-        $this->user = $env['BIOMETRIC_DB_USER'];
-        $this->password = $env['BIOMETRIC_DB_PASSWORD'];
-        $this->database = $env['BIOMETRIC_DB_NAME'];
+        $this->host = $env->get('BIOMETRIC_DB_HOST');
+        $this->user = $env->get('BIOMETRIC_DB_USER');
+        $this->password = $env->get('BIOMETRIC_DB_PASSWORD');
+        $this->database = $env->get('BIOMETRIC_DB_NAME');
         $this->conn = new mysqli($this->host, $this->user, $this->password, $this->database);
         if (mysqli_connect_errno()) {
             printf("Connection Failed: %s\n",  mysqli_connect_errno());
@@ -62,5 +52,11 @@ class Database {
         }
 
         return json_decode(json_encode($results));
+    }
+
+    function execute($query){
+        $rs = mysqli_query($this->conn, $query);
+
+        return $rs;
     }
 }

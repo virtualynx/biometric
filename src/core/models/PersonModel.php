@@ -5,12 +5,18 @@ use biometric\src\core\Database;
 use stdClass;
 
 require_once(dirname(__FILE__)."/../Database.php");
+require_once(dirname(__FILE__)."/PhotoModel.php");
+require_once(dirname(__FILE__)."/DocumentModel.php");
 
 class PersonModel {
     private $db;
+    private $photoModel;
+    private $documentModel;
 
     public function __construct(){
         $this->db = new Database();
+        $this->photoModel = new PhotoModel();
+        $this->documentModel = new DocumentModel();
     }
 
     public function list(): array{
@@ -26,7 +32,7 @@ class PersonModel {
         return $persons;
     }
 
-    public function getInfo(string $nik): stdClass{
+    public function get(string $nik): stdClass{
         $persons = $this->db->query("select * from person where nik = '$nik'");
 
         if(count($persons) == 0){
@@ -35,22 +41,56 @@ class PersonModel {
 
         $person = json_decode(json_encode($persons[0]), true);
         $person['biometric_status'] = $this->getBiometricStatus($nik);
-        $person['documents'] = $this->getDocuments($nik);
-        $person['photos'] = $this->getPhotos($nik);
+        $person['documents'] = $this->documentModel->get($nik);
+        $person['photos'] = $this->photoModel->get($nik);
 
-        return json_decode(json_encode($person));;
+        return json_decode(json_encode($person));
     }
 
-    public function getDocuments(string $nik): array{
-        $docs = $this->db->query("select * from document where nik = '$nik'");
+    public function add(stdClass $person): bool{
+        $persons = $this->db->query("select * from person where nik = '$person->nik'");
 
-        return $docs;
+        if(count($persons) > 0){
+            throw new \Exception('Data exists');
+        }
+
+        $res = $this->db->execute("
+            insert into person(
+                nik,
+                name,
+                address,
+                familycard_no,
+                village,
+                phone
+            )
+            values(
+                '$person->nik',
+                '$person->name',
+                '$person->address',
+                '$person->familycard_no',
+                '$person->village',
+                '$person->phone'
+            )
+        ");
+
+        return $res;
     }
 
-    public function getPhotos(string $nik): array{
-        $photos = $this->db->query("select * from photo where nik = '$nik'");
+    public function update(stdClass $person): bool{
+        $res = $this->db->execute("
+            update person
+            set
+                name = '$person->name',
+                address = '$person->address',
+                familycard_no = '$person->familycard_no',
+                village = '$person->village',
+                phone = '$person->phone',
+                updated_at = current_timestamp()
+            where
+                nik = '$person->nik'
+        ");
 
-        return $photos;
+        return $res;
     }
 
     public function getFingerprints(string $nik): array{
@@ -65,7 +105,7 @@ class PersonModel {
             'fingerprint' => 'unregistered'
         ];
 
-        $photos = $this->getPhotos($nik);
+        $photos = $this->photoModel->get($nik);
         foreach($photos as $row){
             if($row->type == 'biometric'){
                 $result['photo'] = 'completed';
