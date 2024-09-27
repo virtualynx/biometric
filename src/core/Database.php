@@ -28,7 +28,7 @@ class Database {
     function __construct(){
         // $this->conn = new mysqli(self::host, self::user, self::password, self::database);
 
-        $env = parse_ini_file(dirname(__FILE__).'/../../.env1');
+        $env = parse_ini_file(dirname(__FILE__).'/../../.env');
 
         if(empty($env)){
             http_response_code(500);
