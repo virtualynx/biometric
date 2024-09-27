@@ -11,6 +11,7 @@ namespace fingerprint;
 
 require("./querydb.php");
 require_once("./helpers/helpers.php");
+require_once("./Fingerprint.php");
 
 if(!empty($_POST["data"])){
     $user_data = json_decode($_POST["data"]);
@@ -23,14 +24,17 @@ if(!empty($_POST["data"])){
         "middle_finger" => $middle_finger_string_array
     ];
 
+    $fp = new Fingerprint();
+    $response3 = $fp->enroll($index_finger_string_array);
+
     // this check for duplicate is not necessary, only required if you want to
     // avoid duplicate enrollment of the same finger, also you might have to improve it
     // a bit to make it more robust, considering this is just a proof of concept and we
     // are only checking a single finger
-    if (isDuplicate($index_finger_string_array[0]) || isDuplicate($middle_finger_string_array[0])) {
-        echo "Duplicate not allowed!";
-    }
-    else{
+    // if (isDuplicate($index_finger_string_array[0]) || isDuplicate($middle_finger_string_array[0])) {
+    //     echo "Duplicate not allowed!";
+    // }else
+    {
         $json_response = enroll_fingerprint($pre_reg_fmd_array);
         $response = json_decode($json_response);
         if ($response !== "enrollment failed"){

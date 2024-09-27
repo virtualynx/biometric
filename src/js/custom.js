@@ -385,7 +385,7 @@ function serverEnroll(){
         }
     };
 
-    xhttp.open("POST", "/src/core/enroll.php", true);
+    xhttp.open("POST", "./src/core/enroll.php", true);
     xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xhttp.send(payload);
 }

@@ -5,7 +5,5 @@
  * About: I will tell you later
  */
 
-namespace fingerprint;
-
 // require("./src/html/home.html");
-require("./src/html/home2.html");
+require("./src/html/home2.php");
