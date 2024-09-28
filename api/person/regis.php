@@ -1,14 +1,18 @@
 <?php
+require_once(dirname(__FILE__)."/../../src/utils/Helper.php");
 require_once(dirname(__FILE__)."/../_api_header.php");
-require_once(dirname(__FILE__)."/../../src/core/Database.php");
 require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
 require_once(dirname(__FILE__)."/../../src/core/models/FileUploadModel.php");
+require_once(dirname(__FILE__)."/../../src/core/models/DocumentModel.php");
+require_once(dirname(__FILE__)."/../../src/core/models/PhotoModel.php");
+require_once(dirname(__FILE__)."/../../src/core/models/QueueModel.php");
 
-use biometric\src\core\Database;
-use biometric\src\core\models\DocumentModel;
 use biometric\src\core\models\PersonModel;
 use biometric\src\core\models\FileUploadModel;
+use biometric\src\core\models\DocumentModel;
 use biometric\src\core\models\PhotoModel;
+use biometric\src\core\models\QueueModel;
+use biometric\src\core\utils\Helper;
 
 if(empty($_POST['nik'])){
     http_response_code(400);
@@ -55,7 +59,13 @@ if(!empty($_FILES["photo"])){
     $filedata = $fu->upload($_FILES["photo"], $_POST['nik'], 'profile/');
 
     $phm = new PhotoModel();
-    $phm->add($_POST['nik'], $filedata->filename, $filedata->path);
+    try{
+        $phm->add($_POST['nik'], $filedata->filename, $filedata->path);
+    }catch(\mysqli_sql_exception $e){
+        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+            throw $e;
+        }
+    }
 }
 
 if(!empty($_FILES["documents"])){
@@ -75,8 +85,20 @@ if(!empty($_FILES["documents"])){
     $dcm = new DocumentModel();
     foreach($files as $row){
         $filedata = $fu->upload($row, null, 'documents/'.$_POST['nik']);
-        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path);
+        try{
+            $dcm->add($_POST['nik'], $filedata->filename, $filedata->path);
+        }catch(\mysqli_sql_exception $e){
+            if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+                throw $e;
+            }
+        }
     }
 }
+
+$person_arr = json_decode(json_encode($person), true);
+
+$queue = new QueueModel();
+$person_arr['queue'] = $queue->add('BMT', $person->nik);
+$person = json_decode(json_encode($person_arr));;
 
 echo json_encode($person);

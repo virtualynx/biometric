@@ -2,7 +2,15 @@
 <html lang="en">
 
 <?php
-    $base_url = getenv('BASE_URL');
+    require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
+
+    use biometric\src\core\models\PersonModel;
+
+    $pm = new PersonModel();
+    $person = null;
+    if(!empty($_GET['nik'])){
+        $person = $pm->get($_GET['nik']);
+    }
 ?>
 
 <head>
@@ -126,15 +134,15 @@
                     <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
                     <div class="row">
                         <div class="col-4">NIK</div>
-                        <div class="col-8">(NIK)</div>
+                        <div class="col-8"><?php echo !empty($person)? $person->nik: '' ?></div>
                     </div>
                     <div class="row">
                         <div class="col-4">Address</div>
-                        <div class="col-8">(Address)</div>
+                        <div class="col-8"><?php echo !empty($person)? $person->address: '' ?></div>
                     </div>
                     <div class="row">
                         <div class="col-4">District</div>
-                        <div class="col-8">(District)</div>
+                        <div class="col-8"><?php echo !empty($person)? $person->village: '' ?></div>
                     </div>
                 </div>
             </div>

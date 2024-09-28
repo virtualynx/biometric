@@ -1,6 +1,10 @@
 <?php
 namespace biometric\src\core\models;
 
+require_once(dirname(__FILE__)."/EnvFileModel.php");
+require_once(dirname(__FILE__)."/../../utils/Helper.php");
+
+use biometric\src\core\utils\Helper;
 use stdClass;
 
 class FileUploadModel {
@@ -12,14 +16,14 @@ class FileUploadModel {
         $this->env = new EnvFileModel();
 
         $this->basePath = dirname(__FILE__).'/../../../';
-        $this->uploadDir = $this->removesTrailingSlash($this->env->get('BIOMETRIC_UPLOAD_DIR'));
+        $this->uploadDir = Helper::removesTrailingSlash($this->env->get('BIOMETRIC_UPLOAD_DIR'));
     }
 
     public function upload(array $files, string $filename = null, string $path = null): stdClass{
         $savePath = $this->uploadDir;
 
         if(!empty($path)){
-            $savePath = $this->removesTrailingSlash($savePath.'/'.$path);
+            $savePath = Helper::removesTrailingSlash($savePath.'/'.$path);
         }
 
         // echo "<b>File to be uploaded: </b>" . $files["name"] . "<br>";
@@ -112,13 +116,5 @@ class FileUploadModel {
         $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
 
         return $base64;
-    }
-
-    private function removesTrailingSlash(string $path){
-        if(substr_compare($path, '/', -strlen('/')) === 0){
-            $path = substr($path, 0, strlen($path)-1);
-        }
-
-        return $path;
     }
 }
