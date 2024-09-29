@@ -2,14 +2,16 @@
 namespace biometric\src\core\models;
 
 use biometric\src\core\Database;
+use biometric\src\core\Fingerprint;
 use stdClass;
 
 require_once(dirname(__FILE__)."/../Database.php");
+require_once(dirname(__FILE__)."/PersonModel.php");
 require_once(dirname(__FILE__)."/PhotoModel.php");
 require_once(dirname(__FILE__)."/DocumentModel.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
 
-class PersonModel {
+class FingerprintModel {
     private $db;
     private $photoModel;
     private $documentModel;
@@ -23,43 +25,27 @@ class PersonModel {
     }
 
     public function list(): array{
-        $persons = $this->db->query("select * from person");
+        $rs = $this->db->query("select * from fingerprint");
 
-        $persons = json_decode(json_encode($persons), true);
-        foreach($persons as &$row){
-            $row['biometric_status'] = $this->getBiometricStatus($row['nik']);
-
-            unset($row);
-        }
-
-        return json_decode(json_encode($persons));
+        return $rs;
     }
 
-    public function get(string $nik): stdClass{
-        $persons = $this->db->query("select * from person where nik = '$nik'");
+    public function getByFmd(string $fmd): stdClass{
+        $pm = new PersonModel();
+        $persons = $pm->list();
+        $fp = new Fingerprint();
 
-        if(count($persons) == 0){
-            throw new \Exception('Data not found');
-        }
+        foreach($persons as $row){
+            $fmdArr = $pm->getFingerprints($row->nik);
 
-        $person = json_decode(json_encode($persons[0]), true);
-        $person['biometric_status'] = $this->getBiometricStatus($nik);
-        $person['documents'] = $this->documentModel->get($nik);
-        $photos = $this->photoModel->get($nik);
-        $person['photos'] = $photos;
-        $bioPhoto = null;
-        foreach($photos as $row){
-            if($row->type == 'biometric'){
-                $bioPhoto = $row;
-                break;
+            if(count($fmdArr)>0){
+                $res = $fp->verify($fmd, $fmdArr);
             }
-        }
-        if(!empty($bioPhoto)){
-            $bioPhoto = $this->fileUploadModel->getBase64String($bioPhoto->filename, $bioPhoto->photo_path);
-        }
-        $person['photo'] = $bioPhoto;
 
-        return json_decode(json_encode($person));
+            $a = 1;
+        }
+
+        return json_decode(json_encode(['test' => 1]));
     }
 
     public function add(stdClass $person): bool{

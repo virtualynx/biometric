@@ -123,22 +123,271 @@
                         <a class="nav-link active" href="#register" role="tab" data-toggle="tab">Register</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#verify" role="tab" data-toggle="tab">Verify</a>
+                        <a class="nav-link" href="#verify" role="tab" data-toggle="tab" onclick="initVerifyFingerprint()">Verify</a>
                     </li>
                 </ul>
             </div>
         </div>
 
         <div class="tab-content">
+
             <div role="tabpanel" class="tab-pane fade in active show" id="register">
                 <?php include_once('_register.php'); ?>
             </div>
 
             <div role="tabpanel" class="tab-pane fade" id="verify">
-                Verify
+                <?php include_once('_verify.php'); ?>
             </div>
         </div>
     </div>
 </body>
 
+<script>
+    const fingerprintTypeCount = 2;
+    const fingerprintSampleCount = 4;
+    const fpAPi = new Fingerprint.WebApi;
+    var fmdArray = [];
+    var currentScanIndex = -1;
+    const nik = '<?php echo !empty($_GET['nik'])? $_GET['nik']: '1234123412341234' ?>';
+
+    $(document).ready(function() {
+        setInterval(queuePuller_callback, 5000);
+        setInterval(fingerprintDetector_callback, 2000);
+    });
+
+    function fingerprintDetector_callback(){
+        fpAPi.enumerateDevices()
+        .then((devices) => {
+            $('.fp-device-status').removeClass('text-success');
+            if(devices.length > 0){
+                $('.fp-device-status').removeClass('text-danger');
+                $('.fp-device-status').addClass('text-success');
+                $('.fp-device-status').html("Device connected");
+            }else{
+                $('.fp-device-status').removeClass('text-success');
+                $('.fp-device-status').addClass('text-danger');
+                $('.fp-device-status').html("Device not detected");
+            }
+        });
+    }
+
+    function initTakeFingerprints(){
+        fpAPi.onSamplesAcquired = onSamplesAcquired_callback;
+
+        $('#btn-fingerprint-begin').removeClass('d-none');
+        $('#btn-fingerprint-save').addClass('d-none');
+
+        let col_width = 12 / fingerprintSampleCount;
+
+        let counter = 1;
+        //index
+        $('#fingerprint-index').html('');
+        for(let a=1; a <= fingerprintSampleCount; a++){
+            $('#fingerprint-index').append(`
+                <div 
+                    id="fingerprint-index-${a}" 
+                    class="fingerprints col-${col_width} text-center"
+                    data-num="${counter++}"
+                    data-finger-type="index"
+                >
+                    <span class="icon icon-fp" title=""></span>
+                </div>
+            `);
+        }
+
+        //thumb
+        $('#fingerprint-thumb').html('');
+        for(let a=1; a <= fingerprintSampleCount; a++){
+            $('#fingerprint-thumb').append(`
+                <div 
+                    id="fingerprint-thumb-${a}" 
+                    class="fingerprints col-${col_width} text-center"
+                    data-num=${counter++}
+                    data-finger-type="thumb"
+                >
+                    <span class="icon icon-fp" title=""></span>
+                </div>
+            `);
+        }
+    }
+
+    function beginCapture(){
+        if(currentScanIndex > 0)return;
+
+        fpAPi.startAcquisition(Fingerprint.SampleFormat.Intermediate, "")
+        .then(function () {
+            fmdArray = [];
+            currentScanIndex = 1;
+            $('#btn-fingerprint-begin').addClass('disabled');
+            $(`[data-num=1]`).find('span').removeClass('icon-fp');
+            $(`[data-num=1]`).find('span').addClass('icon-fp-scanning');
+        }, function (error) {
+            console.log('startCapture - error', error.message);
+        });
+    }
+
+    function stopCapture(){
+        if(currentScanIndex == -1)return;
+
+        fpAPi.stopAcquisition()
+        .then(function () {
+            currentScanIndex = -1;
+            $('#btn-fingerprint-begin').removeClass('disabled');
+            $('#btn-fingerprint-begin').removeClass('d-none');
+            $('#btn-fingerprint-save').addClass('d-none');
+        }, function (error) {
+            console.log('stopCapture - error', error.message);
+        });
+    }
+
+    function finishedCapture(){
+        if(currentScanIndex == -1)return;
+
+        fpAPi.stopAcquisition()
+        .then(function () {
+            currentScanIndex = -1;
+            $('#btn-fingerprint-begin').removeClass('disabled');
+            $('#btn-fingerprint-begin').addClass('d-none');
+            $('#btn-fingerprint-save').removeClass('d-none');
+        }, function (error) {
+            console.log('finishedCapture - error', error.message);
+        });
+    }
+
+    function onSamplesAcquired_callback(e){
+        console.log("onSamplesAcquired", e);
+        let samples = JSON.parse(e.samples);
+        let fmd = samples[0].Data;
+
+        let fingerType = $(`[data-num=${currentScanIndex}]`).attr('data-finger-type');
+        fmdArray.push({
+            fingerType: fingerType,
+            fmd: fmd
+        });
+
+        $(`[data-num=${currentScanIndex}]`).find('span').removeClass('icon-fp-scanning');
+        $(`[data-num=${currentScanIndex}]`).find('span').addClass('icon-fp-scanned');
+
+        currentScanIndex++;
+
+        if(currentScanIndex > (fingerprintTypeCount * fingerprintSampleCount)){
+            finishedCapture();
+        }
+
+        $(`[data-num=${currentScanIndex}]`).find('span').removeClass('icon-fp');
+        $(`[data-num=${currentScanIndex}]`).find('span').addClass('icon-fp-scanning');
+    }
+
+    function saveFingerprints(){
+        $.ajax({
+            type: "POST",
+            url: "./api/fingerprint/enroll.php",
+            data: {
+                nik: nik,
+                fmds: fmdArray
+            },
+            dataType: "json",
+            success: (res) => {
+                stopCapture();
+            },
+            error: (xhr, status, error) => {
+                var err = eval("(" + xhr.responseText + ")");
+                console.log('error', err);
+            }
+        });
+    }
+
+    function queuePuller_callback(){
+        let queueId = localStorage.getItem("queue_id");
+
+        if(queueId){
+            $.ajax({
+                type: "POST",
+                url: "./api/queue/status.php",
+                data: {
+                    queue_id: queueId
+                },
+                dataType: "json",
+                success: (res) => {
+                    // console.log('queue/status', res);
+                    if(res.status){
+                        if(res.status !== 'PULLED'){
+                            localStorage.removeItem('queue_id');
+                        }else{
+                            setProfile(res.queue);
+                        }
+                    }
+                },
+                error: (xhr, status, error) => {
+                    var err = eval("(" + xhr.responseText + ")");
+                    console.log('error', err);
+                }
+            });
+
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "./api/queue/pull.php",
+            data: {
+                prefix: 'BMT'
+            },
+            dataType: "json",
+            success: (res) => {
+                console.log('queue/pull', res);
+                localStorage.setItem("queue_id", res.queue_id);
+                setProfile(res);
+            },
+            error: () => {}
+        });
+    }
+
+    function setProfile(queue){
+        $('#person_name').html(queue.person.name);
+        $('#person_nik').html(queue.nik);
+        $('#person_address').html(queue.person.address);
+        $('#person_district').html(queue.person.village);
+    }
+
+    function initVerifyFingerprint(){
+        fpAPi.onSamplesAcquired = onSamplesAcquired_verify_callback;
+        beginCaptureVerify();
+    }
+
+    function beginCaptureVerify(){
+        fpAPi.startAcquisition(Fingerprint.SampleFormat.Intermediate, "")
+        .then(function () {
+            $('#fingerprint-verify').find('span').removeClass('icon-fp');
+            $('#fingerprint-verify').find('span').addClass('icon-fp-scanning');
+        }, function (error) {
+            console.log('startCapture - error', error.message);
+        });
+    }
+
+    function onSamplesAcquired_verify_callback(e){
+        console.log("onSamplesAcquired_verify", e);
+        $('#fingerprint-verify').find('span').removeClass('icon-fp-scanning');
+        $('#fingerprint-verify').find('span').addClass('icon-fp');
+
+        let samples = JSON.parse(e.samples);
+        let fmd = samples[0].Data;
+        
+        $.ajax({
+            type: "POST",
+            url: "./api/fingerprint/verify.php",
+            data: {
+                fmd: fmd
+            },
+            dataType: "json",
+            success: (res) => {
+                setTimeout(beginCaptureVerify, 500);
+            },
+            error: (xhr, status, error) => {
+                var err = eval("(" + xhr.responseText + ")");
+                console.log('error', err);
+            }
+        });
+    }
+</script>
 </html>

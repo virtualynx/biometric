@@ -1,5 +1,5 @@
 <?php
-namespace fingerprint;
+namespace biometric\src\core;
 
 require_once(dirname(__FILE__)."/helpers/helpers.php");
 
@@ -16,13 +16,26 @@ class Fingerprint {
      * 
      */
     function enroll($fmdArr, $fmdArr2 = []){
-        return $this->post_service(
+        $res = $this->post_service(
             "/enroll.php", 
             [
                 "index_finger" => $fmdArr,
-                "middle_finger" => []
+                "middle_finger" => !empty($fmdArr2)? $fmdArr2: ''
             ]
         );
+
+        return json_decode(json_encode([
+            'finger1' => $res->enrolled_index_finger,
+            'finger2' => $res->enrolled_middle_finger
+        ]));
+
+        // $pre_reg_fmd_array = [
+        //     "index_finger" => $fmdArr,
+        //     "middle_finger" => $fmdArr2
+        // ];
+        // $json_response = enroll_fingerprint($pre_reg_fmd_array);
+
+        // return json_decode($json_response);
     }
 
     function isDuplicate($fmdToCheck, $fmdArr){
