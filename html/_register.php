@@ -1,8 +1,52 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
         <div class="card-body">
+            <div class="row">
+                <div class="col-4 text-center">
+                    <button 
+                        type="button" 
+                        class="btn btn-primary btn-block"
+                        onclick="pullFromQueue()"
+                    >Pull from Queue</button>
+                </div>
+                <div class="col-8">
+                    <div class="row">
+                        <div class="col-4">Manual Input NIK</div>
+                        <div class="col-8">
+                            <input 
+                                type="text" 
+                                id="manual_person_nik" 
+                                class="form-control" 
+                                onkeyup="pullManualNik()"
+                                onchange="pullManualNik()"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mx-3 mb-3">
+    <div class="col-12 card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-12 text-right">
+                    <button type="button" class="close" aria-label="Close" onclick="clearRegisterData()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+            
             <h5 class="card-title">Register Biometrical Data for <span id="person_name" class="text-primary"></span></h5>
             <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
+            
+            <div class="row">
+                <div class="col-12 text-center">
+                    <img id="person_photo" src="" alt="Red dot" />
+                </div>
+            </div>
             <div class="row">
                 <div class="col-4">NIK</div>
                 <div class="col-8" id="person_nik"><?php echo !empty($person)? $person->nik: '' ?></div>
@@ -29,7 +73,8 @@
                     <span class="icon" style="background-image: url('./res/icons/icons8-fingerprint-50.png')" title="not_enrolled"></span>
                 </div>
                 <div class="col-8">
-                    <button type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#modalFingerprint" onclick="initTakeFingerprints()">Take Fingerprints</button>
+                    <!-- <button type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#modalFingerprint" onclick="initTakeFingerprints()">Take Fingerprints</button> -->
+                    <button type="button" class="btn btn-primary btn-block" onclick="openModalTakeFingerprint()">Take Fingerprints</button>
                 </div>
             </div>
             <div class="row">
@@ -39,25 +84,6 @@
         </div>
     </div>
 </div>
-
-<!-- card photo -->
-<!-- <div class="row mx-3 mb-3">
-    <div class="col-12 card">
-        <div class="card-body">
-            <h5 class="card-title">Photo</h5>
-            <div class="row mb-2">
-                <div class="col-12 text-center">
-                    <img src="./res/icons/icons8-photo-gallery-100.png" style="width: 400px; height: 300px"/>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    <button type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#createEnrollment" onclick="takePhoto()">Take Photo</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> -->
 
 <!--Modal Photo-->
 <section>
@@ -70,7 +96,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 class="modal-title my-text my-pri-color" id="createEnrollmentTitle">Take Fingerprints</h3>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="stopCapture()">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -98,14 +124,14 @@
                         <div id="fingerprint-thumb" class="form-row justify-content-center">
                         </div>
 
-                        <div class="form-row m-3 mt-md-5 justify-content-center">
+                        <!-- <div class="form-row m-3 mt-md-5 justify-content-center">
                             <div class="col-12">
                                 <button id="btn-fingerprint-begin" class="btn btn-primary btn-block my-sec-bg my-text-button py-1" type="submit" onclick="beginCapture()">Start</button>
                             </div>
                             <div class="col-12">
                                 <button id="btn-fingerprint-save" class="btn btn-success btn-block my-sec-bg my-text-button py-1 d-none" type="submit" onclick="saveFingerprints()">Save</button>
                             </div>
-                        </div>
+                        </div> -->
                     </form>
                 </div>
                 <div class="modal-footer">

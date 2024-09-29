@@ -2,12 +2,14 @@
 namespace biometric\src\core\models;
 
 use biometric\src\core\Database;
+use biometric\src\core\Fingerprint;
 use stdClass;
 
 require_once(dirname(__FILE__)."/../Database.php");
 require_once(dirname(__FILE__)."/PhotoModel.php");
 require_once(dirname(__FILE__)."/DocumentModel.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
+require_once(dirname(__FILE__)."/../Fingerprint.php");
 
 class PersonModel {
     private $db;
@@ -60,6 +62,36 @@ class PersonModel {
         $person['photo'] = $bioPhoto;
 
         return json_decode(json_encode($person));
+    }
+
+    public function getByFmd(string $fmd): stdClass{
+        $persons = $this->list();
+        $fp = new Fingerprint();
+
+        $found_nik = null;
+        foreach($persons as $row){
+            $fingerprints = $this->getFingerprints($row->nik);
+
+            $fmdArr = [];
+            foreach($fingerprints as $row_fp){
+                $fmdArr []= $row_fp->hash;
+            }
+
+            if(count($fmdArr)>0){
+                $res = $fp->verify($fmd, $fmdArr);
+                if($res === 'match'){
+                    $found_nik = $row->nik;
+                    break;
+                }
+            }
+        }
+
+        $result = null;
+        if(!empty($found_nik)){
+            $result = $this->get($found_nik);
+        }
+
+        return json_decode(json_encode(['person' => $result]));
     }
 
     public function add(stdClass $person): bool{
@@ -128,22 +160,23 @@ class PersonModel {
         }
 
         $fps = $this->getFingerprints($nik);
+        $hasIndex = false;
+        $hasThumb = false;
         foreach($fps as $row){
-            $hasIndex = false;
-            $hasThumb = false;
             if($row->hand_side == 'RIGHT' && $row->finger_type == 'INDEX'){
                 $hasIndex = true;
             }
             if($row->hand_side == 'RIGHT' && $row->finger_type == 'THUMB'){
                 $hasThumb = true;
             }
-            if($hasIndex && $hasThumb){
-                $result['fingerprint'] = 'completed';
-            }else if(!$hasIndex){
-                $result['fingerprint'] = 'index finger not registered';
-            }else if(!$hasThumb){
-                $result['fingerprint'] = 'thumb finger not registered';
-            }
+        }
+        
+        if($hasIndex && $hasThumb){
+            $result['fingerprint'] = 'completed';
+        }else if(!$hasIndex){
+            $result['fingerprint'] = 'index finger not registered';
+        }else if(!$hasThumb){
+            $result['fingerprint'] = 'thumb finger not registered';
         }
 
         return json_decode(json_encode($result));

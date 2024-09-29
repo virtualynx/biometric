@@ -28,37 +28,19 @@ foreach($fmds as $row){
 }
 
 $fp = new Fingerprint();
-// $response_index = $fp->enroll($indexFmds);
-// if($response_index === "enrollment failed"){
-//     $response_index = null;
-// }else{
-//     $response_index = $response_index->enrolled_index_finger;
-// }
-// $response_thumb = $fp->enroll($thumbFmds);
-// if($response_thumb === "enrollment failed"){
-//     $response_thumb = null;
-// }else{
-//     $response_thumb = $response_thumb->enrolled_index_finger;
-// }
-
 $response = $fp->enroll($indexFmds, $thumbFmds);
 $finger1 = $response->finger1;
 $finger2 = $response->finger2;
 
-$result = [
-    'status' => 'success',
-    'data' => [
-        'index' => $finger1,
-        'thumb' => $finger1
-    ]
-];
-
-if($finger1 == null && $finger2 == null){
-    $result['status'] = 'failed';
+$status = 'success';
+if($finger1 == null || $finger2 == null){
+    $status = 'failed';
 }
 
-if($result['status'] == 'success'){
-    
+if($status == 'success'){
+    $fpm = new FingerprintModel();
+    $fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_INDEX, $finger1);
+    $fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_THUMB, $finger2);
 }
 
-echo json_encode($result);
+echo json_encode(['status' => $status]);

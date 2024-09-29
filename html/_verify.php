@@ -25,22 +25,38 @@
 
     <div class="col-12 card mt-3">
         <div class="card-body">
-            <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
+            <div class="row">
+                <div class="col-12 text-right">
+                    <button type="button" class="close" aria-label="Close" onclick="clearVerifyData()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+            <div id="verify_not_found_label" class="row d-none">
+                <div class="col-12 text-center">
+                    <h2 class="form-label text-danger">Data Not Found !!</h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 text-center">
+                    <img id="verify_photo" src="" alt="Red dot" />
+                </div>
+            </div>
             <div class="row">
                 <div class="col-4">Name</div>
-                <div class="col-8" id="person_name"><?php echo !empty($person)? $person->nik: '' ?></div>
+                <div class="col-8" id="verify_name"><?php echo !empty($person)? $person->nik: '' ?></div>
             </div>
             <div class="row">
                 <div class="col-4">NIK</div>
-                <div class="col-8" id="person_nik"><?php echo !empty($person)? $person->nik: '' ?></div>
+                <div class="col-8" id="verify_nik"><?php echo !empty($person)? $person->nik: '' ?></div>
             </div>
             <div class="row">
                 <div class="col-4">Address</div>
-                <div class="col-8" id="person_address"><?php echo !empty($person)? $person->address: '' ?></div>
+                <div class="col-8" id="verify_address"><?php echo !empty($person)? $person->address: '' ?></div>
             </div>
             <div class="row">
                 <div class="col-4">District</div>
-                <div class="col-8" id="person_district"><?php echo !empty($person)? $person->village: '' ?></div>
+                <div class="col-8" id="verify_district"><?php echo !empty($person)? $person->village: '' ?></div>
             </div>
         </div>
     </div>

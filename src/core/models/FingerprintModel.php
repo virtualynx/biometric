@@ -12,6 +12,11 @@ require_once(dirname(__FILE__)."/DocumentModel.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
 
 class FingerprintModel {
+    const FINGER_TYPE_INDEX = 'INDEX';
+    const FINGER_TYPE_THUMB = 'THUMB';
+    const HAND_SIDE_LEFT = 'LEFT';
+    const HAND_SIDE_RIGHT = 'RIGHT';
+
     private $db;
     private $photoModel;
     private $documentModel;
@@ -30,108 +35,22 @@ class FingerprintModel {
         return $rs;
     }
 
-    public function getByFmd(string $fmd): stdClass{
-        $pm = new PersonModel();
-        $persons = $pm->list();
-        $fp = new Fingerprint();
-
-        foreach($persons as $row){
-            $fmdArr = $pm->getFingerprints($row->nik);
-
-            if(count($fmdArr)>0){
-                $res = $fp->verify($fmd, $fmdArr);
-            }
-
-            $a = 1;
-        }
-
-        return json_decode(json_encode(['test' => 1]));
-    }
-
-    public function add(stdClass $person): bool{
-        $persons = $this->db->query("select * from person where nik = '$person->nik'");
-
-        if(count($persons) > 0){
-            throw new \Exception('Data exists');
-        }
-
+    public function add(string $nik, string $handSide, string $fingerType, string $hash): bool{
         $res = $this->db->execute("
-            insert into person(
+            insert into fingerprint(
                 nik,
-                name,
-                address,
-                familycard_no,
-                village,
-                phone
+                finger_type,
+                hand_side,
+                hash
             )
             values(
-                '$person->nik',
-                '$person->name',
-                '$person->address',
-                '$person->familycard_no',
-                '$person->village',
-                '$person->phone'
+                '$nik',
+                '$fingerType',
+                '$handSide',
+                '$hash'
             )
         ");
 
         return $res;
-    }
-
-    public function update(stdClass $person): bool{
-        $res = $this->db->execute("
-            update person
-            set
-                name = '$person->name',
-                address = '$person->address',
-                familycard_no = '$person->familycard_no',
-                village = '$person->village',
-                phone = '$person->phone',
-                updated_at = current_timestamp()
-            where
-                nik = '$person->nik'
-        ");
-
-        return $res;
-    }
-
-    public function getFingerprints(string $nik): array{
-        $fps = $this->db->query("select * from fingerprint where nik = '$nik'");
-
-        return $fps;
-    }
-
-    public function getBiometricStatus(string $nik): stdClass{
-        $result = [
-            'photo' => 'unregistered',
-            'fingerprint' => 'unregistered'
-        ];
-
-        $photos = $this->photoModel->get($nik);
-        foreach($photos as $row){
-            if($row->type == 'biometric'){
-                $result['photo'] = 'completed';
-            }
-        }
-
-        $fps = $this->getFingerprints($nik);
-        foreach($fps as $row){
-            $hasIndex = false;
-            $hasThumb = false;
-            if($row->hand_side == 'RIGHT' && $row->finger_type == 'INDEX'){
-                $hasIndex = true;
-            }
-            if($row->hand_side == 'RIGHT' && $row->finger_type == 'THUMB'){
-                $hasThumb = true;
-            }
-            if($hasIndex && $hasThumb){
-                $result['fingerprint'] = 'completed';
-            }else if(!$hasIndex){
-                $result['fingerprint'] = 'index finger not registered';
-            }else if(!$hasThumb){
-                $result['fingerprint'] = 'thumb finger not registered';
-            }
-        }
-
-        return json_decode(json_encode($result));
     }
 }

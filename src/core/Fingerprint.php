@@ -49,7 +49,7 @@ class Fingerprint {
     }
 
     function verify($fmdToCheck, $fmdArr){
-        return $this->post_service(
+        $res = $this->post_service(
             "verify.php",
             [
                 "pre_enrolled_finger_data" => $fmdToCheck,
@@ -57,6 +57,8 @@ class Fingerprint {
                 "enrolled_middle_finger_data" => count($fmdArr)>1? $fmdArr[1]: ''
             ]
         );
+
+        return $res;
     }
 
     private function post_service($endpoint, $data){

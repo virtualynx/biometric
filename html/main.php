@@ -120,7 +120,7 @@
             <div class="col-12 text-center">
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#register" role="tab" data-toggle="tab">Register</a>
+                        <a class="nav-link active" href="#register" role="tab" data-toggle="tab" onclick="fpAPi.onSamplesAcquired = ()=>{}">Register</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#verify" role="tab" data-toggle="tab" onclick="initVerifyFingerprint()">Verify</a>
@@ -148,11 +148,10 @@
     const fpAPi = new Fingerprint.WebApi;
     var fmdArray = [];
     var currentScanIndex = -1;
-    const nik = '<?php echo !empty($_GET['nik'])? $_GET['nik']: '1234123412341234' ?>';
 
     $(document).ready(function() {
-        setInterval(queuePuller_callback, 5000);
         setInterval(fingerprintDetector_callback, 2000);
+        // setInterval(pullFromQueue, 5000);
     });
 
     function fingerprintDetector_callback(){
@@ -169,6 +168,90 @@
                 $('.fp-device-status').html("Device not detected");
             }
         });
+    }
+
+    function pullFromQueue(){
+        let queueId = localStorage.getItem("queue_id");
+
+        if(queueId){
+            $.ajax({
+                type: "POST",
+                url: "./api/queue/status.php",
+                data: {
+                    queue_id: queueId
+                },
+                dataType: "json",
+                success: (res) => {
+                    // console.log('queue/status', res);
+                    if(res.status){
+                        if(res.status !== 'PULLED'){
+                            localStorage.removeItem('queue_id');
+                        }else{
+                            setProfile(res.queue.person);
+                        }
+                    }
+                },
+                error: (xhr, status, error) => {
+                    var err = eval("(" + xhr.responseText + ")");
+                    console.log('error', err);
+                }
+            });
+
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "./api/queue/pull.php",
+            data: {
+                prefix: 'BMT'
+            },
+            dataType: "json",
+            success: (res) => {
+                console.log('queue/pull', res);
+                localStorage.setItem("queue_id", res.queue_id);
+                setProfile(res.person);
+            },
+            error: () => {}
+        });
+    }
+
+    function pullManualNik(){
+        let manualNik = $('#manual_person_nik').val();
+        if(manualNik){
+            if(manualNik.length < 16)return;
+
+            $.ajax({
+                type: "POST",
+                url: "./api/person/getinfo.php",
+                data: {
+                    nik: manualNik
+                },
+                dataType: "json",
+                success: (res) => {
+                    console.log('person/getinfo', res);
+                    setProfile(res);
+                },
+                error: () => {}
+            });
+        }
+    }
+
+    function openModalTakeFingerprint(){
+        let nik = $('#person_nik').html().trim();
+
+        if(!nik){
+            nik = $('#manual_person_nik').val().trim();
+        }
+
+        if(!nik){
+            alert('No Person is selected');
+            return;
+        }
+
+        $('#modalFingerprint').modal('show');
+        initTakeFingerprints();
+        beginCapture();
     }
 
     function initTakeFingerprints(){
@@ -271,7 +354,10 @@
         currentScanIndex++;
 
         if(currentScanIndex > (fingerprintTypeCount * fingerprintSampleCount)){
-            finishedCapture();
+            // finishedCapture();
+            saveFingerprints();
+
+            return;
         }
 
         $(`[data-num=${currentScanIndex}]`).find('span').removeClass('icon-fp');
@@ -279,6 +365,12 @@
     }
 
     function saveFingerprints(){
+        let nik = $('#person_nik').html().trim();
+
+        if(!nik){
+            nik = $('#manual_person_nik').val().trim();
+        }
+
         $.ajax({
             type: "POST",
             url: "./api/fingerprint/enroll.php",
@@ -289,6 +381,30 @@
             dataType: "json",
             success: (res) => {
                 stopCapture();
+                if(res){
+                    alert(res.status);
+                    $('#modalFingerprint').modal('hide');
+                    
+                    let queueId = localStorage.getItem("queue_id");
+                    if(queueId){
+                        $.ajax({
+                            type: "POST",
+                            url: "./api/queue/complete_queue.php",
+                            data: {
+                                queue_id: queueId
+                            },
+                            dataType: "json",
+                            success: (res) => {
+                                console.log('queue/complete_queue', res);
+                                localStorage.removeItem("queue_id");
+                            },
+                            error: (xhr, status, error) => {
+                                var err = eval("(" + xhr.responseText + ")");
+                                console.log('error', err);
+                            }
+                        });
+                    }
+                }
             },
             error: (xhr, status, error) => {
                 var err = eval("(" + xhr.responseText + ")");
@@ -297,57 +413,42 @@
         });
     }
 
-    function queuePuller_callback(){
-        let queueId = localStorage.getItem("queue_id");
+    function setProfile(person){
+        $('#person_photo').attr('src', person.photo);
+        $('#person_name').html(person.name);
+        $('#person_nik').html(person.nik);
+        $('#person_address').html(person.address);
+        $('#person_district').html(person.village);
+    }
+    
+    function clearRegisterData(){
+        $('#person_photo').attr('src', '');
+        $('#person_nik').html('');
+        $('#person_name').html('');
+        $('#person_address').html('');
+        $('#person_district').html('');
 
+        $('#manual_person_nik').val('');
+
+        let queueId = localStorage.getItem("queue_id");
         if(queueId){
             $.ajax({
                 type: "POST",
-                url: "./api/queue/status.php",
+                url: "./api/queue/re_enqueue.php",
                 data: {
                     queue_id: queueId
                 },
                 dataType: "json",
                 success: (res) => {
-                    // console.log('queue/status', res);
-                    if(res.status){
-                        if(res.status !== 'PULLED'){
-                            localStorage.removeItem('queue_id');
-                        }else{
-                            setProfile(res.queue);
-                        }
-                    }
+                    console.log('queue/re_enqueue', res);
+                    localStorage.removeItem("queue_id");
                 },
                 error: (xhr, status, error) => {
                     var err = eval("(" + xhr.responseText + ")");
                     console.log('error', err);
                 }
             });
-
-            return;
         }
-
-        $.ajax({
-            type: "POST",
-            url: "./api/queue/pull.php",
-            data: {
-                prefix: 'BMT'
-            },
-            dataType: "json",
-            success: (res) => {
-                console.log('queue/pull', res);
-                localStorage.setItem("queue_id", res.queue_id);
-                setProfile(res);
-            },
-            error: () => {}
-        });
-    }
-
-    function setProfile(queue){
-        $('#person_name').html(queue.person.name);
-        $('#person_nik').html(queue.nik);
-        $('#person_address').html(queue.person.address);
-        $('#person_district').html(queue.person.village);
     }
 
     function initVerifyFingerprint(){
@@ -365,10 +466,20 @@
         });
     }
 
+    function clearVerifyData(){
+        $('#verify_photo').attr('src', '');
+        $('#verify_nik').html('');
+        $('#verify_name').html('');
+        $('#verify_address').html('');
+        $('#verify_district').html('');
+    }
+
     function onSamplesAcquired_verify_callback(e){
         console.log("onSamplesAcquired_verify", e);
         $('#fingerprint-verify').find('span').removeClass('icon-fp-scanning');
         $('#fingerprint-verify').find('span').addClass('icon-fp');
+
+        clearVerifyData();
 
         let samples = JSON.parse(e.samples);
         let fmd = samples[0].Data;
@@ -381,6 +492,19 @@
             },
             dataType: "json",
             success: (res) => {
+                if(res.person){
+                    $('#verify_photo').attr('src', res.person.photo);
+                    $('#verify_nik').html(res.person.nik);
+                    $('#verify_name').html(res.person.name);
+                    $('#verify_address').html(res.person.address);
+                    $('#verify_district').html(res.person.village);
+                }else{
+                    $('#verify_not_found_label').removeClass('d-none');
+                    setTimeout(()=>{
+                        $('#verify_not_found_label').addClass('d-none');
+                    }, 2500)
+                }
+
                 setTimeout(beginCaptureVerify, 500);
             },
             error: (xhr, status, error) => {

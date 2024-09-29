@@ -81,6 +81,25 @@ class QueueModel {
         return null;
     }
 
+    public function findByNik($nik): stdClass{
+        $queues = $this->db->query("
+            select * 
+            from queue 
+            where nik = '$nik'
+        ");
+
+        if(count($queues)>0){
+            $result = json_decode(json_encode($queues[0]), true);
+            $result['queue_code'] = $this->getQueueCode($result);
+            $result['person'] = (new PersonModel())->get($result['nik']);
+            $result = json_decode(json_encode($result));
+
+            return $result;
+        }
+
+        return null;
+    }
+
     public function pullQueue(string $prefix){
         $queues = $this->db->query("
             select * 
@@ -131,7 +150,7 @@ class QueueModel {
         return $this->updateStatus($queue_id, self::STATUS_COMPLETED);
     }
 
-    public function reQueue($queue_id){
+    public function reEnqueue($queue_id){
         return $this->updateStatus($queue_id, self::STATUS_PENDING);
     }
 
