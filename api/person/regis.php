@@ -56,7 +56,7 @@ if(empty($person)){
 $fu = new FileUploadModel();
 
 if(!empty($_FILES["photo"])){
-    $filedata = $fu->upload($_FILES["photo"], $_POST['nik'], 'profile/');
+    $filedata = $fu->upload($_FILES["photo"], $_POST['nik'], 'person/'.$_POST['nik'], true);
 
     $phm = new PhotoModel();
     try{
@@ -84,7 +84,7 @@ if(!empty($_FILES["documents"])){
 
     $dcm = new DocumentModel();
     foreach($files as $row){
-        $filedata = $fu->upload($row, null, 'documents/'.$_POST['nik']);
+        $filedata = $fu->upload($row, null, 'person/'.$_POST['nik'].'/documents', true);
         try{
             $dcm->add($_POST['nik'], $filedata->filename, $filedata->path);
         }catch(\mysqli_sql_exception $e){

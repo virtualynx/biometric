@@ -6,6 +6,8 @@ use biometric\src\core\Database;
 require_once(dirname(__FILE__)."/../Database.php");
 
 class DocumentModel {
+    const DOCUMENT_TYPE_DOCUMENT = 'document';
+
     private $db;
 
     public function __construct(){
@@ -18,7 +20,13 @@ class DocumentModel {
         return $docs;
     }
     
-    public function add(string $nik, string $filename, string $savepath, string $description = null){
+    public function add(
+        string $nik, 
+        string $filename, 
+        string $savepath, 
+        string $documentType = self::DOCUMENT_TYPE_DOCUMENT, 
+        string $description = null
+    ){
         $res = $this->db->execute("
             insert into document(
                 nik,
@@ -30,7 +38,7 @@ class DocumentModel {
             values(
                 '$nik',
                 '$filename',
-                'document',
+                '$documentType',
                 '$description',
                 '$savepath'
             )

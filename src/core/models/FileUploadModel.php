@@ -19,7 +19,12 @@ class FileUploadModel {
         $this->uploadDir = Helper::removesTrailingSlash($this->env->get('BIOMETRIC_UPLOAD_DIR'));
     }
 
-    public function upload(array $files, string $filename = null, string $path = null): stdClass{
+    public function upload(
+        array $files, 
+        string $filename = null, 
+        string $path = null,
+        bool $overwrite = false
+    ): stdClass{
         $savePath = $this->uploadDir;
 
         if(!empty($path)){
@@ -51,7 +56,11 @@ class FileUploadModel {
         if(file_exists($filePath)){
             // echo "<h3>The file already exists</h3>";
             // throw new \Exception("File already exists");
-            $status = 'File already exists';
+            if($overwrite){
+                unlink($filePath);
+            }else{
+                $status = 'File already exists';
+            }
         }
 
         move_uploaded_file($files["tmp_name"], $filePath);
