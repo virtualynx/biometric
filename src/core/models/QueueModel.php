@@ -5,9 +5,11 @@ use biometric\src\core\Database;
 use stdClass;
 
 require_once(dirname(__FILE__)."/../Database.php");
+require_once(dirname(__FILE__)."/PersonModel.php");
 
 class QueueModel {
     private const STATUS_PENDING = 'PENDING';
+    private const STATUS_PULLED = 'PULLED';
     private const STATUS_PROCESS = 'PROCESS';
     private const STATUS_COMPLETED= 'COMPLETED';
 
@@ -17,7 +19,7 @@ class QueueModel {
         $this->db = new Database();
     }
 
-    public function add($prefix, $nik){
+    public function add($prefix, $nik): stdClass{
         $queue_no = 0;
 
         $queues = $this->db->query("
@@ -60,34 +62,84 @@ class QueueModel {
         return count($queues)>0? $queues[0]: null;
     }
 
-    public function getQueue($prefix){
+    public function find($queue_id): stdClass{
         $queues = $this->db->query("
             select * 
             from queue 
-            where queue_prefix = '$prefix'
-            order by created_at limit 1
+            where queue_id = $queue_id
+        ");
+
+        if(count($queues)>0){
+            $result = json_decode(json_encode($queues[0]), true);
+            $result['queue_code'] = $this->getQueueCode($result);
+            $result['person'] = (new PersonModel())->get($result['nik']);
+            $result = json_decode(json_encode($result));
+
+            return $result;
+        }
+
+        return null;
+    }
+
+    public function pullQueue(string $prefix){
+        $queues = $this->db->query("
+            select * 
+            from queue 
+            where 
+                queue_prefix = '$prefix'
+                and status = '".self::STATUS_PENDING."'
+            order by 
+                created_at asc,
+                updated_at desc
+            limit 1
         ");
 
         $result = null;
 
         if(count($queues)>0){
-            $res = $this->db->execute("
-                update queue
-                set
-                    status = '".self::STATUS_PROCESS."'
-                where
-                    queue_id = ".$queues[0]->queue_id."
-            ");
+            $result = json_decode(json_encode($queues[0]), true);
+            $result['queue_code'] = $this->getQueueCode($result);
+            $result['person'] = (new PersonModel())->get($result['nik']);
+            $result = json_decode(json_encode($result));
+
+            $res = $this->updateStatus($result->queue_id, self::STATUS_PULLED);
         }
 
         return $result;
     }
 
+    public function process($queue_id): bool{
+        $queues = $this->db->query("
+            select * 
+            from queue 
+            where 
+                queue_id = '$queue_id'
+                and status = '".self::STATUS_PULLED."'
+            limit 1
+        ");
+
+        if(count($queues)>0){
+            $res = $this->updateStatus($queue_id, self::STATUS_PROCESS);
+
+            return $res;
+        }
+
+        return false;
+    }
+
     public function complete($queue_id){
+        return $this->updateStatus($queue_id, self::STATUS_COMPLETED);
+    }
+
+    public function reQueue($queue_id){
+        return $this->updateStatus($queue_id, self::STATUS_PENDING);
+    }
+
+    private function updateStatus($queue_id, $status){
         $res = $this->db->execute("
             update queue
             set
-                status = '".self::STATUS_COMPLETED."'
+                status = '$status'
             where
                 queue_id = $queue_id
         ");
@@ -95,16 +147,15 @@ class QueueModel {
         return $res;
     }
 
-    public function reQueue($queue_id){
-        $res = $this->db->execute("
-            update queue
-            set
-                status = '".self::STATUS_PENDING."'
-            where
-                queue_id = $queue_id
-        ");
+    private function getQueueCode($queue){
+        if(!empty($queue)){
+            $queue = json_decode(json_encode($queue));
+            $code = $queue->queue_prefix.sprintf('%04d', $queue->queue_no);
 
-        return $res;
+            return $code;
+        }
+
+        return null;
     }
 
     private function removesCompleted(){
