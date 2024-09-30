@@ -9,6 +9,7 @@
 namespace fingerprint;
 
 use biometric\src\core\Database;
+use biometric\src\core\Fingerprint;
 
 require_once(dirname(__FILE__)."/../../core/helpers/helpers.php");
 require_once(dirname(__FILE__)."/../../core/Database.php");

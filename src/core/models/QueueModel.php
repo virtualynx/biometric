@@ -102,7 +102,7 @@ class QueueModel {
         return null;
     }
 
-    public function findByNik($nik): stdClass{
+    public function findByNik($nik){
         $queues = $this->db->query("
             select * 
             from queue 

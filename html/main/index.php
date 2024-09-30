@@ -284,27 +284,6 @@
 
         // console.log('pullManualRegister - selectedPersonNik', selectedPersonNik);
 
-        // $.ajax({
-        //     type: "POST",
-        //     url: "./api/person/getinfo.php",
-        //     data: {
-        //         nik: selectedPersonNik
-        //     },
-        //     dataType: "json",
-        //     success: (res) => {
-        //         // console.log('person/getinfo', res);
-        //         localStorage.setItem("is_from_queue", false);
-        //         setRegisterProfile(res);
-        //     },
-        //     error: (xhr, status, error) => {
-        //         if(xhr.responseText == 'Data not found'){
-        //             clearRegisterProfile();
-        //         }else{
-        //             console.log('error', error);
-        //         }
-        //     }
-        // });
-
         $.ajax({
             type: "POST",
             url: "./api/queue/pull.php",
@@ -318,7 +297,19 @@
                 localStorage.setItem("is_from_queue", true);
                 setRegisterProfile(res.person);
             },
-            error: xhrErrorCallback
+            error: (xhr, status, error) => {
+                if(xhr.responseText == ''){
+                    localStorage.setItem("is_from_queue", false);
+                    setRegisterProfile({
+                        photo: null,
+                        name: '',
+                        nik: selectedPersonNik,
+                        address: '',
+                        village: '',
+                        biometric_status: {fingerprint: ''}
+                    });
+                }
+            }
         });
     }
 
@@ -453,7 +444,7 @@
                 stopCapture();
                 if(res?.status == 'success'){
                     $('#modalFingerprint').modal('hide');
-                    alert("Fingerprint Registration Success");
+                    alert("Fingerprint registration success");
                 }else{
                     alert('Fingerprint registration failed, please register again');
                 }
