@@ -3,8 +3,12 @@
 
 <?php
     require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
+    require_once(dirname(__FILE__)."/../../src/core/models/EnvFileModel.php");
 
     use biometric\src\core\models\PersonModel;
+    use biometric\src\core\models\EnvFileModel;
+
+    $env = new EnvFileModel();
 ?>
 
 <head>
@@ -152,7 +156,6 @@
 
         <?php
             $pm = new PersonModel();
-            $person = null;
             if(!empty($_GET['nik'])){
                 $person = $pm->get($_GET['nik']);
         ?>
@@ -301,7 +304,7 @@
                 if(xhr.responseText == ''){
                     localStorage.setItem("is_from_queue", false);
                     setRegisterProfile({
-                        photo: null,
+                        photos: [],
                         name: '',
                         nik: selectedPersonNik,
                         address: '',
@@ -455,7 +458,8 @@
 
     function setRegisterProfile(person){
         // console.log('setRegisterProfile', person);
-        $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
+        // $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
+        fetchProfilePhoto(person);
         $('#person_name').html(person.name);
         $('#person_nik').html(person.nik);
         $('#person_address').html(person.address);
@@ -602,6 +606,29 @@
             },
             error: xhrErrorCallback
         });
+    }
+
+    function fetchProfilePhoto(person){
+        let profilePic = person.photos.find(a => a.type == 'biometric');
+        $('#person_photo').attr('src', noPhotoIcon);
+        if(profilePic){
+            $.ajax({
+                type: "GET",
+                url: "<?php echo $env->get('PRODUCTION_HOST') ?>/api/person/download_photo.php",
+                data: {
+                    nik: person.nik,
+                    filename: profilePic.filename,
+                    is_base64: true
+                },
+                dataType: "text",
+                success: (res) => {
+                    if(res){
+                        $('#person_photo').attr('src', res);
+                    }
+                },
+                error: xhrErrorCallback
+            });
+        }
     }
 </script>
 </html>

@@ -49,17 +49,17 @@ class PersonModel {
         $person['documents'] = $this->documentModel->get($nik);
         $photos = $this->photoModel->get($nik);
         $person['photos'] = $photos;
-        $bioPhoto = null;
-        foreach($photos as $row){
-            if($row->type == 'biometric'){
-                $bioPhoto = $row;
-                break;
-            }
-        }
-        if(!empty($bioPhoto)){
-            $bioPhoto = $this->fileUploadModel->getBase64String($bioPhoto->filename, $bioPhoto->photo_path);
-        }
-        $person['photo'] = $bioPhoto;
+        // $bioPhoto = null;
+        // foreach($photos as $row){
+        //     if($row->type == 'biometric'){
+        //         $bioPhoto = $row;
+        //         break;
+        //     }
+        // }
+        // if(!empty($bioPhoto)){
+        //     $bioPhoto = $this->fileUploadModel->getBase64String($bioPhoto->filename, $bioPhoto->photo_path);
+        // }
+        // $person['photo'] = $bioPhoto;
 
         return json_decode(json_encode($person));
     }
