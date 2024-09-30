@@ -38,9 +38,9 @@ function generateCorsHeaders(){
     header("Access-Control-Allow-Origin: $allow_origin");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
     header("Access-Control-Allow-Headers: Content-Type, Content-Length, Accept-Encoding, Authorization");
-    // if($_SERVER["REQUEST_METHOD"] == 'OPTIONS') {
-    //     die();
-    // }
+    if($_SERVER["REQUEST_METHOD"] == 'OPTIONS') {
+        die();
+    }
 }
 
 header('Content-Type: application/json; charset=utf-8');
