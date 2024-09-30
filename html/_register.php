@@ -10,17 +10,30 @@
                     >Pull from Queue</button>
                 </div>
                 <div class="col-8">
-                    <div class="row">
+                    <!-- <div class="row">
                         <div class="col-4">Manual Input NIK</div>
                         <div class="col-8">
                             <input 
                                 type="text" 
-                                id="manual_person_nik" 
+                                id="manual_input_register" 
                                 class="form-control" 
-                                onkeyup="pullManualNik()"
-                                onchange="pullManualNik()"
+                                onkeyup="pullManualRegister()"
+                                onchange="pullManualRegister()"
                             >
                         </div>
+                    </div> -->
+                    
+                    <div class="form-group col-12">
+                        <label for="datalist_manual_input" class="form-label"><h5>Or, Manual Register</h5></label>
+                        <input 
+                            id="datalist_manual_input" 
+                            class="form-control" 
+                            name="manual_input_register" 
+                            list="datalist_manual" 
+                            onchange="pullManualRegister(this)"
+                            placeholder="Search NIK / Name ..."
+                        >
+                        <datalist id="datalist_manual"></datalist>
                     </div>
                 </div>
             </div>
@@ -33,21 +46,21 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-12 text-right">
-                    <button type="button" class="close" aria-label="Close" onclick="clearRegisterData()">
+                    <button type="button" class="close" aria-label="Close" onclick="clearRegisterProfile();reEnqueue();">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
             </div>
-            
+
             <h5 class="card-title">Register Biometrical Data for <span id="person_name" class="text-primary"></span></h5>
             <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
             
             <div class="row">
                 <div class="col-12 text-center">
-                    <img id="person_photo" src="" alt="Red dot" />
+                    <img id="person_photo" src="./res/icons/icons8-photo-gallery-100.png" alt="" />
                 </div>
             </div>
-            <div class="row">
+            <div class="row mt-2">
                 <div class="col-4">NIK</div>
                 <div class="col-8" id="person_nik"><?php echo !empty($person)? $person->nik: '' ?></div>
             </div>
@@ -66,6 +79,11 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
         <div class="card-body">
+            <div id="person_has_fingerprint" class="row mb-2 d-none">
+                <div class="col-12">
+                    <h4 class="text-success">This person already has Fingerprint data</h4>
+                </div>
+            </div>
             <h5 class="card-title">Fingerprint (<span class="fp-device-status" class="">?</span>)</h5>
             <div class="row mb-2">
                 <div class="col-4 text-center">

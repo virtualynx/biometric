@@ -39,7 +39,7 @@
             </div>
             <div class="row">
                 <div class="col-12 text-center">
-                    <img id="verify_photo" src="" alt="Red dot" />
+                    <img id="verify_photo" src="./res/icons/icons8-photo-gallery-100.png" alt="" />
                 </div>
             </div>
             <div class="row">

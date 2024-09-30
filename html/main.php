@@ -146,12 +146,38 @@
     const fingerprintTypeCount = 2;
     const fingerprintSampleCount = 4;
     const fpAPi = new Fingerprint.WebApi;
+    const noPhotoIcon = './res/icons/icons8-photo-gallery-100.png';
     var fmdArray = [];
     var currentScanIndex = -1;
 
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
         // setInterval(pullFromQueue, 5000);
+
+        $.ajax({
+            type: "GET",
+            url: "./api/person/list.php",
+            data: {},
+            dataType: "json",
+            success: (res) => {
+                console.log('person/list', res);
+                if(res && res.length > 0){
+                    $('#datalist_manual').html('');
+                    res.forEach(a => {
+                        $('#datalist_manual').append(`
+                            <option value="${a.nik}">
+                                ${a.name} (${a.nik})
+                            </option>
+                        `);
+                    });
+                    $('#datalist_manual').trigger("change");
+                }
+            },
+            error: (xhr, status, error) => {
+                var err = eval("(" + xhr.responseText + ")");
+                console.log('error', err);
+            }
+        });
     });
 
     function fingerprintDetector_callback(){
@@ -170,7 +196,16 @@
         });
     }
 
+    function xhrErrorCallback(xhr, status, error){
+        console.log('xhr', xhr);
+        console.log('status', status);
+        console.log('error', error);
+    }
+
     function pullFromQueue(){
+        $('#manual_input_register').val('');
+        $('#manual_input_register').trigger('change');
+
         let queueId = localStorage.getItem("queue_id");
 
         if(queueId){
@@ -184,17 +219,16 @@
                 success: (res) => {
                     // console.log('queue/status', res);
                     if(res.status){
-                        if(res.status !== 'PULLED'){
+                        if(res.status == 'PENDING' || res.status == 'COMPLETED'){
                             localStorage.removeItem('queue_id');
-                        }else{
-                            setProfile(res.queue.person);
+                            pullFromQueue();
+                        }else if(res.status == 'PULLED'){
+                            localStorage.setItem("is_from_queue", true);
+                            setRegisterProfile(res.queue.person);
                         }
                     }
                 },
-                error: (xhr, status, error) => {
-                    var err = eval("(" + xhr.responseText + ")");
-                    console.log('error', err);
-                }
+                error: xhrErrorCallback
             });
 
             return;
@@ -210,38 +244,52 @@
             success: (res) => {
                 console.log('queue/pull', res);
                 localStorage.setItem("queue_id", res.queue_id);
-                setProfile(res.person);
+                localStorage.setItem("is_from_queue", true);
+                setRegisterProfile(res.person);
             },
-            error: () => {}
+            error: xhrErrorCallback
         });
     }
 
-    function pullManualNik(){
-        let manualNik = $('#manual_person_nik').val();
-        if(manualNik){
-            if(manualNik.length < 16)return;
+    function pullManualRegister(el){
+        let selectedPersonNik = el.value;
 
-            $.ajax({
-                type: "POST",
-                url: "./api/person/getinfo.php",
-                data: {
-                    nik: manualNik
-                },
-                dataType: "json",
-                success: (res) => {
-                    console.log('person/getinfo', res);
-                    setProfile(res);
-                },
-                error: () => {}
-            });
+        if(
+            selectedPersonNik?.length == 0 
+            // || (0 < selectedPersonNik?.length && selectedPersonNik?.length < 16)
+        ){
+            return;
         }
+
+        // console.log('pullManualRegister - selectedPersonNik', selectedPersonNik);
+
+        $.ajax({
+            type: "POST",
+            url: "./api/person/getinfo.php",
+            data: {
+                nik: selectedPersonNik
+            },
+            dataType: "json",
+            success: (res) => {
+                // console.log('person/getinfo', res);
+                localStorage.setItem("is_from_queue", false);
+                setRegisterProfile(res);
+            },
+            error: (xhr, status, error) => {
+                if(xhr.responseText == 'Data not found'){
+                    clearRegisterProfile();
+                }else{
+                    console.log('error', error);
+                }
+            }
+        });
     }
 
     function openModalTakeFingerprint(){
         let nik = $('#person_nik').html().trim();
 
         if(!nik){
-            nik = $('#manual_person_nik').val().trim();
+            nik = $('#manual_input_register').val().trim();
         }
 
         if(!nik){
@@ -368,7 +416,7 @@
         let nik = $('#person_nik').html().trim();
 
         if(!nik){
-            nik = $('#manual_person_nik').val().trim();
+            nik = $('#manual_input_register').val().trim();
         }
 
         $.ajax({
@@ -381,9 +429,10 @@
             dataType: "json",
             success: (res) => {
                 stopCapture();
-                if(res){
-                    alert(res.status);
+                if(res?.status == 'success'){
                     $('#modalFingerprint').modal('hide');
+                    clearRegisterProfile();
+                    alert("Biometric Registration Success");
                     
                     let queueId = localStorage.getItem("queue_id");
                     if(queueId){
@@ -398,38 +447,47 @@
                                 console.log('queue/complete_queue', res);
                                 localStorage.removeItem("queue_id");
                             },
-                            error: (xhr, status, error) => {
-                                var err = eval("(" + xhr.responseText + ")");
-                                console.log('error', err);
-                            }
+                            error: xhrErrorCallback
                         });
                     }
                 }
             },
-            error: (xhr, status, error) => {
-                var err = eval("(" + xhr.responseText + ")");
-                console.log('error', err);
-            }
+            error: xhrErrorCallback
         });
     }
 
-    function setProfile(person){
-        $('#person_photo').attr('src', person.photo);
+    function setRegisterProfile(person){
+        // console.log('setRegisterProfile', person);
+        $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
         $('#person_name').html(person.name);
         $('#person_nik').html(person.nik);
         $('#person_address').html(person.address);
         $('#person_district').html(person.village);
+
+        if(person.biometric_status.fingerprint == 'completed'){
+            $('#person_has_fingerprint').removeClass('d-none');
+        }else{
+            if(!($('#person_has_fingerprint').hasClass('d-none'))){
+                $('#person_has_fingerprint').addClass('d-none');
+            }
+        }
     }
     
-    function clearRegisterData(){
-        $('#person_photo').attr('src', '');
+    function clearRegisterProfile(){
+        $('#person_photo').attr('src', noPhotoIcon);
         $('#person_nik').html('');
         $('#person_name').html('');
         $('#person_address').html('');
         $('#person_district').html('');
 
-        $('#manual_person_nik').val('');
+        $('#manual_input_register').val('');
+        
+        if(!($('#person_has_fingerprint').hasClass('d-none'))){
+            $('#person_has_fingerprint').addClass('d-none');
+        }
+    }
 
+    function reEnqueue(){
         let queueId = localStorage.getItem("queue_id");
         if(queueId){
             $.ajax({
@@ -442,15 +500,14 @@
                 success: (res) => {
                     console.log('queue/re_enqueue', res);
                     localStorage.removeItem("queue_id");
+                    localStorage.removeItem("is_from_queue");
                 },
-                error: (xhr, status, error) => {
-                    var err = eval("(" + xhr.responseText + ")");
-                    console.log('error', err);
-                }
+                error: xhrErrorCallback
             });
         }
     }
 
+    //verify sections
     function initVerifyFingerprint(){
         fpAPi.onSamplesAcquired = onSamplesAcquired_verify_callback;
         beginCaptureVerify();
@@ -467,7 +524,7 @@
     }
 
     function clearVerifyData(){
-        $('#verify_photo').attr('src', '');
+        $('#verify_photo').attr('src', noPhotoIcon);
         $('#verify_nik').html('');
         $('#verify_name').html('');
         $('#verify_address').html('');
@@ -493,7 +550,7 @@
             dataType: "json",
             success: (res) => {
                 if(res.person){
-                    $('#verify_photo').attr('src', res.person.photo);
+                    $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
                     $('#verify_nik').html(res.person.nik);
                     $('#verify_name').html(res.person.name);
                     $('#verify_address').html(res.person.address);
@@ -507,10 +564,7 @@
 
                 setTimeout(beginCaptureVerify, 500);
             },
-            error: (xhr, status, error) => {
-                var err = eval("(" + xhr.responseText + ")");
-                console.log('error', err);
-            }
+            error: xhrErrorCallback
         });
     }
 </script>
