@@ -1,4 +1,4 @@
 <?php
 
 // require("./src/html/home.html");
-require("./html/main.php");
+require("./html/main/index.php");

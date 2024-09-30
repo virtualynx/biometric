@@ -39,6 +39,7 @@ if($finger1 == null || $finger2 == null){
 
 if($status == 'success'){
     $fpm = new FingerprintModel();
+    $res = $fpm->clearFingerprintsForNik($_POST["nik"]);
     $fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_INDEX, $finger1);
     $fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_THUMB, $finger2);
 }

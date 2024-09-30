@@ -8,15 +8,36 @@ require_once(dirname(__FILE__)."/../Database.php");
 require_once(dirname(__FILE__)."/PersonModel.php");
 
 class QueueModel {
-    private const STATUS_PENDING = 'PENDING';
-    private const STATUS_PULLED = 'PULLED';
-    private const STATUS_PROCESS = 'PROCESS';
-    private const STATUS_COMPLETED= 'COMPLETED';
+    public const STATUS_PENDING = 'PENDING';
+    public const STATUS_PULLED = 'PULLED';
+    public const STATUS_PROCESS = 'PROCESS';
+    public const STATUS_COMPLETED= 'COMPLETED';
 
     private $db;
 
     public function __construct(){
         $this->db = new Database();
+    }
+
+    public function list(): array{
+        $queues = $this->db->query("
+            select * 
+            from queue 
+            order by created_at
+        ");
+
+        $queues = json_decode(json_encode($queues), true);
+
+        foreach($queues as &$row){
+            $row['queue_code'] = $this->getQueueCode($row);
+            $row['person'] = (new PersonModel())->get($row['nik']);
+
+            unset($row);
+        }
+
+        $queues = json_decode(json_encode($queues));
+
+        return $queues;
     }
 
     public function add($prefix, $nik): stdClass{
@@ -154,7 +175,7 @@ class QueueModel {
         return $this->updateStatus($queue_id, self::STATUS_PENDING);
     }
 
-    private function updateStatus($queue_id, $status){
+    public function updateStatus($queue_id, $status){
         $res = $this->db->execute("
             update queue
             set

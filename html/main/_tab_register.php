@@ -5,24 +5,12 @@
                 <div class="col-4 text-center">
                     <button 
                         type="button" 
+                        id="button_pull_from_queue"
                         class="btn btn-primary btn-block"
                         onclick="pullFromQueue()"
                     >Pull from Queue</button>
                 </div>
                 <div class="col-8">
-                    <!-- <div class="row">
-                        <div class="col-4">Manual Input NIK</div>
-                        <div class="col-8">
-                            <input 
-                                type="text" 
-                                id="manual_input_register" 
-                                class="form-control" 
-                                onkeyup="pullManualRegister()"
-                                onchange="pullManualRegister()"
-                            >
-                        </div>
-                    </div> -->
-                    
                     <div class="form-group col-12">
                         <label for="datalist_manual_input" class="form-label"><h5>Or, Manual Register</h5></label>
                         <input 
@@ -46,7 +34,7 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-12 text-right">
-                    <button type="button" class="close" aria-label="Close" onclick="clearRegisterProfile();reEnqueue();">
+                    <button id="button_clear_register_profile" type="button" class="close" aria-label="Close" onclick="clearRegisterProfile();reEnqueue();">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -57,7 +45,7 @@
             
             <div class="row">
                 <div class="col-12 text-center">
-                    <img id="person_photo" src="./res/icons/icons8-photo-gallery-100.png" alt="" />
+                    <img id="person_photo" src="<?php echo !empty($person)? $person->photo: './res/icons/icons8-photo-gallery-100.png' ?>" alt="" />
                 </div>
             </div>
             <div class="row mt-2">
@@ -97,6 +85,18 @@
             </div>
             <div class="row">
                 <div class="col-12">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mx-3 mb-3">
+    <div class="col-12 card">
+        <div class="card-body">
+            <div class="row mb-2">
+                <div class="col-12">
+                    <button type="button" class="btn btn-primary btn-block" onclick="completeRegistration()">Complete Registration</button>
                 </div>
             </div>
         </div>

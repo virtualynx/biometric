@@ -2,15 +2,9 @@
 <html lang="en">
 
 <?php
-    require_once(dirname(__FILE__)."/../src/core/models/PersonModel.php");
+    require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
 
     use biometric\src\core\models\PersonModel;
-
-    $pm = new PersonModel();
-    $person = null;
-    if(!empty($_GET['nik'])){
-        $person = $pm->get($_GET['nik']);
-    }
 ?>
 
 <head>
@@ -132,11 +126,11 @@
         <div class="tab-content">
 
             <div role="tabpanel" class="tab-pane fade in active show" id="register">
-                <?php include_once('_register.php'); ?>
+                <?php include_once('_tab_register.php'); ?>
             </div>
 
             <div role="tabpanel" class="tab-pane fade" id="verify">
-                <?php include_once('_verify.php'); ?>
+                <?php include_once('_tab_verify.php'); ?>
             </div>
         </div>
     </div>
@@ -154,21 +148,43 @@
         setInterval(fingerprintDetector_callback, 2000);
         // setInterval(pullFromQueue, 5000);
 
+        fetchPersonList();
+
+        <?php
+            $pm = new PersonModel();
+            $person = null;
+            if(!empty($_GET['nik'])){
+                $person = $pm->get($_GET['nik']);
+        ?>
+                $('[name="manual_input_register"]').val("<?php echo $_GET['nik'] ?>");
+                pullManualRegister(null, "<?php echo $_GET['nik'] ?>");
+
+                $('#button_pull_from_queue').attr('disabled', true);
+                $('[name="manual_input_register"]').attr('readonly', true);
+                $('#button_clear_register_profile').attr('disabled', true);
+        <?php
+            }
+        ?>
+    });
+
+    function fetchPersonList(){
         $.ajax({
             type: "GET",
-            url: "./api/person/list.php",
+            url: "./api/queue/list.php",
             data: {},
             dataType: "json",
             success: (res) => {
-                console.log('person/list', res);
+                console.log('queue/list', res);
                 if(res && res.length > 0){
                     $('#datalist_manual').html('');
                     res.forEach(a => {
-                        $('#datalist_manual').append(`
-                            <option value="${a.nik}">
-                                ${a.name} (${a.nik})
-                            </option>
-                        `);
+                        if(a.status == 'PENDING'){
+                            $('#datalist_manual').append(`
+                                <option value="${a.nik}">
+                                    ${a.person?.name} (${a.nik})
+                                </option>
+                            `);
+                        }
                     });
                     $('#datalist_manual').trigger("change");
                 }
@@ -178,7 +194,7 @@
                 console.log('error', err);
             }
         });
-    });
+    }
 
     function fingerprintDetector_callback(){
         fpAPi.enumerateDevices()
@@ -251,8 +267,13 @@
         });
     }
 
-    function pullManualRegister(el){
-        let selectedPersonNik = el.value;
+    function pullManualRegister(el, nik = null){
+        let selectedPersonNik = null;
+        if(nik != null){
+            selectedPersonNik = nik;
+        }else{
+            selectedPersonNik = el.value;
+        }
 
         if(
             selectedPersonNik?.length == 0 
@@ -263,25 +284,41 @@
 
         // console.log('pullManualRegister - selectedPersonNik', selectedPersonNik);
 
+        // $.ajax({
+        //     type: "POST",
+        //     url: "./api/person/getinfo.php",
+        //     data: {
+        //         nik: selectedPersonNik
+        //     },
+        //     dataType: "json",
+        //     success: (res) => {
+        //         // console.log('person/getinfo', res);
+        //         localStorage.setItem("is_from_queue", false);
+        //         setRegisterProfile(res);
+        //     },
+        //     error: (xhr, status, error) => {
+        //         if(xhr.responseText == 'Data not found'){
+        //             clearRegisterProfile();
+        //         }else{
+        //             console.log('error', error);
+        //         }
+        //     }
+        // });
+
         $.ajax({
             type: "POST",
-            url: "./api/person/getinfo.php",
+            url: "./api/queue/pull.php",
             data: {
                 nik: selectedPersonNik
             },
             dataType: "json",
             success: (res) => {
-                // console.log('person/getinfo', res);
-                localStorage.setItem("is_from_queue", false);
-                setRegisterProfile(res);
+                // console.log('queue/pull', res);
+                localStorage.setItem("queue_id", res.queue_id);
+                localStorage.setItem("is_from_queue", true);
+                setRegisterProfile(res.person);
             },
-            error: (xhr, status, error) => {
-                if(xhr.responseText == 'Data not found'){
-                    clearRegisterProfile();
-                }else{
-                    console.log('error', error);
-                }
-            }
+            error: xhrErrorCallback
         });
     }
 
@@ -371,20 +408,6 @@
         });
     }
 
-    function finishedCapture(){
-        if(currentScanIndex == -1)return;
-
-        fpAPi.stopAcquisition()
-        .then(function () {
-            currentScanIndex = -1;
-            $('#btn-fingerprint-begin').removeClass('disabled');
-            $('#btn-fingerprint-begin').addClass('d-none');
-            $('#btn-fingerprint-save').removeClass('d-none');
-        }, function (error) {
-            console.log('finishedCapture - error', error.message);
-        });
-    }
-
     function onSamplesAcquired_callback(e){
         console.log("onSamplesAcquired", e);
         let samples = JSON.parse(e.samples);
@@ -402,7 +425,6 @@
         currentScanIndex++;
 
         if(currentScanIndex > (fingerprintTypeCount * fingerprintSampleCount)){
-            // finishedCapture();
             saveFingerprints();
 
             return;
@@ -431,25 +453,9 @@
                 stopCapture();
                 if(res?.status == 'success'){
                     $('#modalFingerprint').modal('hide');
-                    clearRegisterProfile();
-                    alert("Biometric Registration Success");
-                    
-                    let queueId = localStorage.getItem("queue_id");
-                    if(queueId){
-                        $.ajax({
-                            type: "POST",
-                            url: "./api/queue/complete_queue.php",
-                            data: {
-                                queue_id: queueId
-                            },
-                            dataType: "json",
-                            success: (res) => {
-                                console.log('queue/complete_queue', res);
-                                localStorage.removeItem("queue_id");
-                            },
-                            error: xhrErrorCallback
-                        });
-                    }
+                    alert("Fingerprint Registration Success");
+                }else{
+                    alert('Fingerprint registration failed, please register again');
                 }
             },
             error: xhrErrorCallback
@@ -505,6 +511,45 @@
                 error: xhrErrorCallback
             });
         }
+    }
+
+    function completeRegistration(){
+        let queueId = localStorage.getItem("queue_id");
+        if(queueId){
+            $.ajax({
+                type: "POST",
+                url: "./api/queue/complete_queue.php",
+                data: {
+                    queue_id: queueId
+                },
+                dataType: "json",
+                success: (res) => {
+                    console.log('queue/complete_queue', res);
+                    localStorage.removeItem("queue_id");
+                    completeRegistration_redirectOrAlert();
+                },
+                error: xhrErrorCallback
+            });
+        }else{
+            completeRegistration_redirectOrAlert();
+        }
+    }
+
+    function completeRegistration_redirectOrAlert(){
+        <?php
+            if(!empty($_GET['redirect'])){
+        ?>
+                let encodedParams = encodeURI(`status=success`);
+                window.location.href = `<?php echo $_GET['redirect'] ?>?${encodedParams}`;
+        <?php
+            }else{
+        ?>
+                clearRegisterProfile();
+                fetchPersonList();
+                alert('Biometric registration success');
+        <?php
+            }
+        ?>
     }
 
     //verify sections

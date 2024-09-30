@@ -53,4 +53,10 @@ class FingerprintModel {
 
         return $res;
     }
+
+    public function clearFingerprintsForNik(string $nik): bool{
+        $res = $this->db->execute("delete from fingerprint where nik = '$nik'");
+
+        return $res;
+    }
 }
