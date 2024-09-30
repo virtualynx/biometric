@@ -26,6 +26,11 @@ if(empty($_FILES['document'])){
     exit;
 }
 
+$doc_type = DocumentModel::DOCUMENT_TYPE_DOCUMENT;
+if(!empty($_POST['document_type'])){
+    $doc_type = $_POST['document_type'];
+}
+
 $desc = null;
 if(!empty($_POST['description'])){
     $desc = $_POST['description'];
@@ -36,7 +41,7 @@ $filedata = $fu->upload($_FILES['document'], null, "person/".$_POST['nik']."/doc
 
 $dcm = new DocumentModel();
 try{
-    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, DocumentModel::DOCUMENT_TYPE_DOCUMENT, $desc);
+    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, $doc_type, $desc);
 }catch(\mysqli_sql_exception $e){
     if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
         throw $e;
