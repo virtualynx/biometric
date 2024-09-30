@@ -459,7 +459,14 @@
     function setRegisterProfile(person){
         // console.log('setRegisterProfile', person);
         // $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
-        fetchProfilePhoto(person);
+
+        $('#person_photo').attr('src', noPhotoIcon);
+        fetchProfilePhoto(person, (res) => {
+            if(res){
+                $('#person_photo').attr('src', res);
+            }
+        });
+
         $('#person_name').html(person.name);
         $('#person_nik').html(person.nik);
         $('#person_address').html(person.address);
@@ -589,8 +596,15 @@
             },
             dataType: "json",
             success: (res) => {
+                console.log('onSamplesAcquired_verify_callback', res);
+                $('#verify_photo').attr('src', noPhotoIcon);
                 if(res.person){
-                    $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
+                    // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
+                    fetchProfilePhoto(res.person, (res) => {
+                        if(res){
+                            $('#verify_photo').attr('src', res);
+                        }
+                    });
                     $('#verify_nik').html(res.person.nik);
                     $('#verify_name').html(res.person.name);
                     $('#verify_address').html(res.person.address);
@@ -608,9 +622,8 @@
         });
     }
 
-    function fetchProfilePhoto(person){
+    function fetchProfilePhoto(person, successCallback){
         let profilePic = person.photos.find(a => a.type == 'biometric');
-        $('#person_photo').attr('src', noPhotoIcon);
         if(profilePic){
             $.ajax({
                 type: "GET",
@@ -621,11 +634,7 @@
                     is_base64: true
                 },
                 dataType: "text",
-                success: (res) => {
-                    if(res){
-                        $('#person_photo').attr('src', res);
-                    }
-                },
+                success: successCallback,
                 error: xhrErrorCallback
             });
         }
