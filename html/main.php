@@ -286,10 +286,10 @@
     }
 
     function openModalTakeFingerprint(){
-        let nik = $('#person_nik').html().trim();
+        let nik = $('#person_nik').html()?.trim();
 
         if(!nik){
-            nik = $('#manual_input_register').val().trim();
+            nik = $('#manual_input_register').val()?.trim();
         }
 
         if(!nik){
