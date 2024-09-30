@@ -26,12 +26,17 @@ if(empty($_FILES['document'])){
     exit;
 }
 
+$desc = null;
+if(!empty($_POST['description'])){
+    $desc = $_POST['description'];
+}
+
 $fu = new FileUploadModel();
 $filedata = $fu->upload($_FILES['document'], null, "person/".$_POST['nik']."/documents/", true);
 
 $dcm = new DocumentModel();
 try{
-    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path);
+    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, DocumentModel::DOCUMENT_TYPE_DOCUMENT, $desc);
 }catch(\mysqli_sql_exception $e){
     if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
         throw $e;

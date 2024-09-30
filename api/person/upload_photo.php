@@ -32,6 +32,11 @@ if(!empty($_POST['photo_type'])){
     $photoType = $_POST['photo_type'];
 }
 
+$desc = null;
+if(!empty($_POST['description'])){
+    $desc = $_POST['description'];
+}
+
 $filename = null;
 $targetPath = 'person/'.$_POST['nik'];
 if($photoType == PhotoModel::PHOTO_TYPE_BIOMETRIC){
@@ -49,7 +54,7 @@ $filedata = $fu->upload($_FILES["photo"], $filename, "$targetPath/", true);
 
 $phm = new PhotoModel();    
 try{
-    $phm->add($_POST['nik'], $filedata->filename, $filedata->path, $photoType);
+    $phm->add($_POST['nik'], $filedata->filename, $filedata->path, $photoType, $desc);
 }catch(\mysqli_sql_exception $e){
     if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
         throw $e;
