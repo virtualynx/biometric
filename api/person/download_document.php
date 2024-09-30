@@ -1,4 +1,5 @@
 <?php
+require_once(dirname(__FILE__)."/../_api_header.php");
 require_once(dirname(__FILE__)."/../../src/core/models/FileUploadModel.php");
 require_once(dirname(__FILE__)."/../../src/core/models/DocumentModel.php");
 
