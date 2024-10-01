@@ -11,21 +11,20 @@ require_once(dirname(__FILE__)."/DocumentModel.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
 require_once(dirname(__FILE__)."/../Fingerprint.php");
 
-class PersonModel {
-    private $db;
+class PersonModel extends Database {
     private $photoModel;
     private $documentModel;
     private $fileUploadModel;
 
     public function __construct(){
-        $this->db = new Database();
+        parent::__construct();
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
         $this->fileUploadModel = new FileUploadModel();
     }
 
     public function list(): array{
-        $persons = $this->db->query("select * from person");
+        $persons = $this->query("select * from person");
 
         $persons = json_decode(json_encode($persons), true);
         foreach($persons as &$row){
@@ -38,7 +37,7 @@ class PersonModel {
     }
 
     public function get(string $nik): stdClass{
-        $persons = $this->db->query("select * from person where nik = '$nik'");
+        $persons = $this->query("select * from person where nik = '$nik'");
 
         if(count($persons) == 0){
             throw new \Exception('Data not found');
@@ -95,13 +94,13 @@ class PersonModel {
     }
 
     public function add(stdClass $person): bool{
-        $persons = $this->db->query("select * from person where nik = '$person->nik'");
+        $persons = $this->query("select * from person where nik = '$person->nik'");
 
         if(count($persons) > 0){
             throw new \Exception('Data exists');
         }
 
-        $res = $this->db->execute("
+        $res = $this->execute("
             insert into person(
                 nik,
                 name,
@@ -124,7 +123,7 @@ class PersonModel {
     }
 
     public function update(stdClass $person): bool{
-        $res = $this->db->execute("
+        $res = $this->execute("
             update person
             set
                 name = '$person->name',
@@ -141,7 +140,7 @@ class PersonModel {
     }
 
     public function getFingerprints(string $nik): array{
-        $fps = $this->db->query("select * from fingerprint where nik = '$nik'");
+        $fps = $this->query("select * from fingerprint where nik = '$nik'");
 
         return $fps;
     }

@@ -11,32 +11,31 @@ require_once(dirname(__FILE__)."/PhotoModel.php");
 require_once(dirname(__FILE__)."/DocumentModel.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
 
-class FingerprintModel {
+class FingerprintModel extends Database {
     const FINGER_TYPE_INDEX = 'INDEX';
     const FINGER_TYPE_THUMB = 'THUMB';
     const HAND_SIDE_LEFT = 'LEFT';
     const HAND_SIDE_RIGHT = 'RIGHT';
 
-    private $db;
     private $photoModel;
     private $documentModel;
     private $fileUploadModel;
 
     public function __construct(){
-        $this->db = new Database();
+        parent::__construct();
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
         $this->fileUploadModel = new FileUploadModel();
     }
 
     public function list(): array{
-        $rs = $this->db->query("select * from fingerprint");
+        $rs = $this->query("select * from fingerprint");
 
         return $rs;
     }
 
     public function add(string $nik, string $handSide, string $fingerType, string $hash): bool{
-        $res = $this->db->execute("
+        $res = $this->execute("
             insert into fingerprint(
                 nik,
                 finger_type,
@@ -55,7 +54,7 @@ class FingerprintModel {
     }
 
     public function clearFingerprintsForNik(string $nik): bool{
-        $res = $this->db->execute("delete from fingerprint where nik = '$nik'");
+        $res = $this->execute("delete from fingerprint where nik = '$nik'");
 
         return $res;
     }

@@ -5,17 +5,15 @@ use biometric\src\core\Database;
 
 require_once(dirname(__FILE__)."/../Database.php");
 
-class DocumentModel {
+class DocumentModel extends Database {
     const DOCUMENT_TYPE_DOCUMENT = 'document';
 
-    private $db;
-
     public function __construct(){
-        $this->db = new Database();
+        parent::__construct();
     }
 
     public function get(string $nik): array{
-        $docs = $this->db->query("select * from document where nik = '$nik'");
+        $docs = $this->query("select * from document where nik = '$nik'");
 
         return $docs;
     }
@@ -27,7 +25,7 @@ class DocumentModel {
         string $documentType = self::DOCUMENT_TYPE_DOCUMENT, 
         string $description = null
     ){
-        $res = $this->db->execute("
+        $res = $this->execute("
             insert into document(
                 nik,
                 filename,

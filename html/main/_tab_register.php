@@ -44,12 +44,25 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
         <div class="card-body">
+            <div class="row">
+                <div class="col-12 text-right">
+                    <button type="button" class="close" aria-label="Close" onclick="deleteProfilePhoto()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+            
             <h5 class="card-title">Register Biometrical Data for <span id="person_name" class="text-primary"></span></h5>
             <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
             
             <div class="row">
                 <div class="col-12 text-center">
-                    <img id="person_photo" src="<?php echo !empty($person)? $person->photo: './res/icons/icons8-photo-gallery-100.png' ?>" alt="" />
+                    <img 
+                        id="person_photo" 
+                        src="<?php echo !empty($person)? $person->photo: './res/icons/icons8-photo-gallery-100.png' ?>" 
+                        alt="" 
+                        style="max-width: 100%"
+                    />
                 </div>
             </div>
             <div id="card_row_take_photo" class="row mt-2">
@@ -134,8 +147,8 @@
                     </div>
                     <div class="row mx-3">
                         <div id="take_photo_cam" class="col-12">
-                            <video id="webcam" autoplay playsinline width="" height=""></video>
-                            <canvas id="webcam_canvas" class="d-none" width="" height=""></canvas>
+                            <video id="webcam" autoplay playsinline style="max-width: 100%"></video>
+                            <canvas id="webcam_canvas" class="d-none" style="max-width: 100%"></canvas>
                         </div>
                         <div id="take_photo_captured" class="col-12">
                             <img src="" />

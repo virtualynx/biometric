@@ -83,6 +83,12 @@ class FileUploadModel {
         ]));
     }
 
+    public function deleteFile(string $filepath){
+        $targetPath = Helper::removesTrailingSlash($this->basePath.'/'.$filepath);
+
+        unlink($targetPath);
+    }
+
     public function downloadFile(string $filename, string $filepath){
         $loadPath = $this->basePath.$filepath;
 

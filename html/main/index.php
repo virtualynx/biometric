@@ -150,6 +150,8 @@
     var fmdArray = [];
     var currentScanIndex = -1;
     var cameraStream = null;
+    let _videoWidth = 0;
+    let _videoHeight = 0;
 
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
@@ -537,6 +539,11 @@
     function playCamera(width = cameraDefaultWidth, height = cameraDefaultHeight){
         let cameraId = $('#take_photo_cam_list').val();
         // console.log('playCamera - cameraId', cameraId);
+        $("video#webcam").bind("loadedmetadata", function () {
+            const canvas = document.querySelector("canvas#webcam_canvas");
+            canvas.setAttribute('width', this.videoWidth);
+            canvas.setAttribute('height', this.videoHeight);
+        });
 
         navigator.mediaDevices.getUserMedia({
             'audio': {'echoCancellation': true},
@@ -569,6 +576,7 @@
         const video = document.querySelector('video#webcam');
         const canvas = document.querySelector("canvas#webcam_canvas");
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
    	    let base64 = canvas.toDataURL('image/jpeg');
 
         $('#take_photo_captured').find('img').attr('src', base64);
@@ -588,8 +596,7 @@
 
         $.ajax({
             type: "POST",
-            // url: "<?php echo $env->get('FILE_STORAGE_HOST') ?>/api/person/upload_photo.php",
-            url: "./api/person/upload_photo.php",
+            url: "<?php echo $env->get('FILE_STORAGE_HOST') ?>/api/person/upload_photo.php",
             data: {
                 nik: nik,
                 photo_type: 'biometric',
@@ -598,9 +605,11 @@
                 filename: `${nik}.jpg`
             },
             // processData: false,
-            dataType: "json",
+            dataType: "text",
             success: (res) => {
                 pullPersonByNik(nik);
+                $('#modalPhoto').modal('hide');
+                alert('Biometric photo success');
             },
             error: xhrErrorCallback
         });
@@ -609,6 +618,32 @@
     function stopWebcam(){
         const video = document.querySelector('video#webcam');
         video.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    function deleteProfilePhoto(){
+        let nik = $('#person_nik').html();
+
+        if(nik?.length == 0)return;
+
+        if(confirm("Delete photo ?") == true) {
+            $.ajax({
+                type: "POST",
+                url: "<?php echo $env->get('FILE_STORAGE_HOST') ?>/api/person/delete_photo.php",
+                data: {
+                    nik: nik,
+                    photo_type: 'biometric'
+                },
+                // processData: false,
+                dataType: "text",
+                success: (res) => {
+                    console.log(res);
+                    if(res == 'success'){
+                        $('#person_photo').attr('src', noPhotoIcon);
+                    }
+                },
+                error: xhrErrorCallback
+            });
+        }
     }
 
     function setRegisterProfile(person){

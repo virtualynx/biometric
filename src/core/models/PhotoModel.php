@@ -6,18 +6,28 @@ use biometric\src\core\Database;
 require_once(dirname(__FILE__)."/../Database.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
 
-class PhotoModel {
+class PhotoModel extends Database {
     const PHOTO_TYPE_BIOMETRIC = 'biometric';
     const PHOTO_TYPE_DOCUMENTATION = 'documentation';
 
-    private $db;
-
     public function __construct(){
-        $this->db = new Database();
+        parent::__construct();
     }
     
-    public function get(string $nik): array{
-        $photos = $this->db->query("select * from photo where nik = '$nik'");
+    public function get(string $nik, string $filename = null): array{
+        $where_filename = '';
+
+        if(!empty($filename)){
+            $where_filename = " and filename = '$filename'";
+        }
+
+        $photos = $this->query("
+            select * 
+            from photo 
+            where 
+                nik = '$nik'
+                $where_filename
+        ");
 
         return $photos;
     }
@@ -29,7 +39,7 @@ class PhotoModel {
         string $photoType = self::PHOTO_TYPE_BIOMETRIC, 
         string $description = null
     ){
-        $res = $this->db->execute("
+        $res = $this->execute("
             insert into photo(
                 nik,
                 filename,
@@ -45,6 +55,12 @@ class PhotoModel {
                 '$description'
             )
         ");
+
+        return $res;
+    }
+
+    public function delete(string $nik, string $filename){
+        $res = $this->execute("delete from photo where nik = '$nik' and filename = '$filename'");
 
         return $res;
     }

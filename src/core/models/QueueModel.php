@@ -7,20 +7,18 @@ use stdClass;
 require_once(dirname(__FILE__)."/../Database.php");
 require_once(dirname(__FILE__)."/PersonModel.php");
 
-class QueueModel {
+class QueueModel extends Database{
     public const STATUS_PENDING = 'PENDING';
     public const STATUS_PULLED = 'PULLED';
     public const STATUS_PROCESS = 'PROCESS';
     public const STATUS_COMPLETED= 'COMPLETED';
 
-    private $db;
-
     public function __construct(){
-        $this->db = new Database();
+        parent::__construct();
     }
 
     public function list(): array{
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             order by created_at
@@ -43,7 +41,7 @@ class QueueModel {
     public function add($prefix, $nik): stdClass{
         $queue_no = 0;
 
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             where queue_prefix = '$prefix'
@@ -57,7 +55,7 @@ class QueueModel {
         
         $queue_no++;
 
-        $res = $this->db->execute("
+        $res = $this->execute("
             insert into queue(
                 queue_prefix,
                 queue_no,
@@ -72,9 +70,9 @@ class QueueModel {
             )
         ");
 
-        $lastId = $this->db->getLastInsertedId();
+        $lastId = $this->getLastInsertedId();
 
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             where queue_id = $lastId
@@ -84,7 +82,7 @@ class QueueModel {
     }
 
     public function find($queue_id): stdClass{
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             where queue_id = $queue_id
@@ -107,7 +105,7 @@ class QueueModel {
         if(count($status)>0){
             $where_status = " and status in ('".implode("', '", $status)."')";
         }
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             where 
@@ -128,7 +126,7 @@ class QueueModel {
     }
 
     public function pullQueue(string $prefix){
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             where 
@@ -155,7 +153,7 @@ class QueueModel {
     }
 
     public function process($queue_id): bool{
-        $queues = $this->db->query("
+        $queues = $this->query("
             select * 
             from queue 
             where 
@@ -182,7 +180,7 @@ class QueueModel {
     }
 
     public function updateStatus($queue_id, $status){
-        $res = $this->db->execute("
+        $res = $this->execute("
             update queue
             set
                 status = '$status'
@@ -205,7 +203,7 @@ class QueueModel {
     }
 
     private function removesCompleted(){
-        $res = $this->db->execute("
+        $res = $this->execute("
             delete from queue
             where
                 status = '".self::STATUS_COMPLETED."'
