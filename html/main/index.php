@@ -145,12 +145,14 @@
     const fingerprintSampleCount = 4;
     const fpAPi = new Fingerprint.WebApi;
     const noPhotoIcon = './res/icons/icons8-photo-gallery-100.png';
+    const cameraDefaultWidth = 640;
+    const cameraDefaultHeight = 480;
     var fmdArray = [];
     var currentScanIndex = -1;
+    var cameraStream = null;
 
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
-        // setInterval(pullFromQueue, 5000);
 
         fetchPersonList();
 
@@ -160,15 +162,49 @@
                 $person = $pm->get($_GET['nik']);
         ?>
                 $('[name="manual_input_register"]').val("<?php echo $_GET['nik'] ?>");
-                pullManualRegister(null, "<?php echo $_GET['nik'] ?>");
+                pullPersonByNik("<?php echo $_GET['nik'] ?>");
 
                 $('#button_pull_from_queue').attr('disabled', true);
                 $('[name="manual_input_register"]').attr('readonly', true);
                 $('#button_clear_register_profile').attr('disabled', true);
         <?php
+            }else{
+        ?>
+                let queueId = localStorage.getItem("queue_id");
+                if(queueId){
+                    pullFromQueue();
+                }
+        <?php
             }
         ?>
+
+        renderCardRowRegisterButtons();
+        renderCardRowTakePhoto();
+        
+        getCameraList();
     });
+
+    function xhrErrorCallback(xhr, status, error){
+        console.log('xhr', xhr);
+        console.log('status', status);
+        console.log('error', error);
+    }
+
+    function fingerprintDetector_callback(){
+        fpAPi.enumerateDevices()
+        .then((devices) => {
+            $('.fp-device-status').removeClass('text-success');
+            if(devices.length > 0){
+                $('.fp-device-status').removeClass('text-danger');
+                $('.fp-device-status').addClass('text-success');
+                $('.fp-device-status').html("Device connected");
+            }else{
+                $('.fp-device-status').removeClass('text-success');
+                $('.fp-device-status').addClass('text-danger');
+                $('.fp-device-status').html("Device not detected");
+            }
+        });
+    }
 
     function fetchPersonList(){
         $.ajax({
@@ -193,32 +229,11 @@
                 }
             },
             error: (xhr, status, error) => {
-                var err = eval("(" + xhr.responseText + ")");
-                console.log('error', err);
+                // if(xhr.responseText != ''){
+                //     console.log('error', err);
+                // }
             }
         });
-    }
-
-    function fingerprintDetector_callback(){
-        fpAPi.enumerateDevices()
-        .then((devices) => {
-            $('.fp-device-status').removeClass('text-success');
-            if(devices.length > 0){
-                $('.fp-device-status').removeClass('text-danger');
-                $('.fp-device-status').addClass('text-success');
-                $('.fp-device-status').html("Device connected");
-            }else{
-                $('.fp-device-status').removeClass('text-success');
-                $('.fp-device-status').addClass('text-danger');
-                $('.fp-device-status').html("Device not detected");
-            }
-        });
-    }
-
-    function xhrErrorCallback(xhr, status, error){
-        console.log('xhr', xhr);
-        console.log('status', status);
-        console.log('error', error);
     }
 
     function pullFromQueue(){
@@ -270,28 +285,22 @@
         });
     }
 
-    function pullManualRegister(el, nik = null){
-        let selectedPersonNik = null;
-        if(nik != null){
-            selectedPersonNik = nik;
-        }else{
-            selectedPersonNik = el.value;
-        }
-
+    function pullPersonByNik(nik){
         if(
-            selectedPersonNik?.length == 0 
-            // || (0 < selectedPersonNik?.length && selectedPersonNik?.length < 16)
+            !nik 
+            || nik?.length == 0 
+            // || (0 < nik?.length && nik?.length < 16)
         ){
             return;
         }
 
-        // console.log('pullManualRegister - selectedPersonNik', selectedPersonNik);
+        // console.log('pullPersonByNik - nik', nik);
 
         $.ajax({
             type: "POST",
             url: "./api/queue/pull.php",
             data: {
-                nik: selectedPersonNik
+                nik: nik
             },
             dataType: "json",
             success: (res) => {
@@ -301,19 +310,64 @@
                 setRegisterProfile(res.person);
             },
             error: (xhr, status, error) => {
-                if(xhr.responseText == ''){
-                    localStorage.setItem("is_from_queue", false);
-                    setRegisterProfile({
-                        photos: [],
-                        name: '',
-                        nik: selectedPersonNik,
-                        address: '',
-                        village: '',
-                        biometric_status: {fingerprint: ''}
+                if(xhr.responseText == 'Data not found'){
+                    $.ajax({
+                        type: "POST",
+                        url: "./api/person/getinfo.php",
+                        data: {
+                            nik: nik,
+                            without_photo: true
+                        },
+                        dataType: "json",
+                        success: (res) => {
+                            // console.log('person/getinfo', res);
+                            localStorage.setItem("is_from_queue", false);
+                            setRegisterProfile(res);
+                            fetchProfilePhoto(res);
+                        },
+                        error: (xhr, status, error) => {
+                            if(xhr.responseText == 'Data not found'){
+                                localStorage.setItem("is_from_queue", false);
+                                setRegisterProfile({
+                                    photos: [],
+                                    name: '',
+                                    nik: nik,
+                                    address: '',
+                                    village: '',
+                                    biometric_status: {fingerprint: ''}
+                                });
+                            }
+                        }
                     });
+                }else{
+                    console.log('error', error);
                 }
             }
         });
+    }
+
+    function renderCardRowRegisterButtons(){
+        let nik = $('#person_nik').html().trim();
+
+        if(nik.length == 0){
+            $('#card_row_register_buttons').removeClass('d-none');
+            $('#card_row_register_another').addClass('d-none');
+        }else{
+            $('#card_row_register_buttons').addClass('d-none');
+            $('#card_row_register_another').removeClass('d-none');
+        }
+    }
+
+    function renderCardRowTakePhoto(){
+        let nik = $('#person_nik').html().trim();
+        let photoSrc = $('#person_photo').attr('src');
+
+        $('#card_row_take_photo').addClass('d-none');
+        if(nik.length > 0 && photoSrc == noPhotoIcon){
+            $('#card_row_take_photo').removeClass('d-none');
+        }else{
+            $('#card_row_take_photo').addClass('d-none');
+        }
     }
 
     function openModalTakeFingerprint(){
@@ -456,21 +510,123 @@
         });
     }
 
+    function getCameraList(){
+        $('#take_photo_cam_list').html('');
+
+        navigator.mediaDevices.enumerateDevices()
+        .then((mediaDevices) => {
+            mediaDevices.forEach(device => {
+                // console.log('device', device);
+                if(device.kind === 'videoinput') {
+                    $('#take_photo_cam_list').append(`
+                        <option value="${device.deviceId}">${device.label}</option>
+                    `);
+                }
+            });
+        })
+        .catch((err1) => {
+            console.log('err1', err1);
+        });
+    }
+
+    function cameraChanged(){
+        stopWebcam();
+        playCamera();
+    }
+
+    function playCamera(width = cameraDefaultWidth, height = cameraDefaultHeight){
+        let cameraId = $('#take_photo_cam_list').val();
+        // console.log('playCamera - cameraId', cameraId);
+
+        navigator.mediaDevices.getUserMedia({
+            'audio': {'echoCancellation': true},
+            'video': {
+                'deviceId': cameraId,
+                'width': {'min': width},
+                'height': {'min': height}
+            }
+        }).then(stream => {
+            const videoElement = document.querySelector('video#webcam');
+            videoElement.setAttribute('width', width);
+            videoElement.setAttribute('height', height);
+            videoElement.srcObject = stream;
+
+            const canvasElement = document.querySelector('canvas#webcam_canvas');
+            canvasElement.setAttribute('width', width);
+            canvasElement.setAttribute('height', height);
+        });
+    }
+    
+    function openModalTakePhoto(){
+        playCamera();
+        
+        $('#take_photo_cam').removeClass('d-none');
+        $('#take_photo_captured').addClass('d-none');
+        $('#modalPhoto').modal('show');
+    }
+
+    function takePhoto(){
+        const video = document.querySelector('video#webcam');
+        const canvas = document.querySelector("canvas#webcam_canvas");
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+   	    let base64 = canvas.toDataURL('image/jpeg');
+
+        $('#take_photo_captured').find('img').attr('src', base64);
+
+        $('#take_photo_cam').addClass('d-none');
+        $('#take_photo_captured').removeClass('d-none');
+    }
+
+    function savePhoto(){
+        let base64 = $('#take_photo_captured').find('img').attr('src');
+        if(base64?.length == 0){
+            alert('Take photo before saving');
+            return;
+        }
+
+        let nik = $('#person_nik').html();
+
+        $.ajax({
+            type: "POST",
+            // url: "<?php echo $env->get('FILE_STORAGE_HOST') ?>/api/person/upload_photo.php",
+            url: "./api/person/upload_photo.php",
+            data: {
+                nik: nik,
+                photo_type: 'biometric',
+                photo: base64,
+                is_base64: true,
+                filename: `${nik}.jpg`
+            },
+            // processData: false,
+            dataType: "json",
+            success: (res) => {
+                pullPersonByNik(nik);
+            },
+            error: xhrErrorCallback
+        });
+    }
+
+    function stopWebcam(){
+        const video = document.querySelector('video#webcam');
+        video.srcObject.getTracks().forEach(track => track.stop());
+    }
+
     function setRegisterProfile(person){
         // console.log('setRegisterProfile', person);
+
         // $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
-
         $('#person_photo').attr('src', noPhotoIcon);
-        fetchProfilePhoto(person, (res) => {
-            if(res){
-                $('#person_photo').attr('src', res);
-            }
-        });
-
         $('#person_name').html(person.name);
         $('#person_nik').html(person.nik);
         $('#person_address').html(person.address);
         $('#person_district').html(person.village);
+
+        fetchProfilePhoto(person, (res) => {
+            if(res){
+                $('#person_photo').attr('src', res);
+            }
+            renderCardRowTakePhoto();
+        });
 
         if(person.biometric_status.fingerprint == 'completed'){
             $('#person_has_fingerprint').removeClass('d-none');
@@ -479,6 +635,8 @@
                 $('#person_has_fingerprint').addClass('d-none');
             }
         }
+        
+        renderCardRowRegisterButtons();
     }
     
     function clearRegisterProfile(){
@@ -493,6 +651,9 @@
         if(!($('#person_has_fingerprint').hasClass('d-none'))){
             $('#person_has_fingerprint').addClass('d-none');
         }
+
+        renderCardRowRegisterButtons();
+        renderCardRowTakePhoto();
     }
 
     function reEnqueue(){
@@ -627,7 +788,7 @@
         if(profilePic){
             $.ajax({
                 type: "GET",
-                url: "<?php echo $env->get('PRODUCTION_HOST') ?>/api/person/download_photo.php",
+                url: "<?php echo $env->get('FILE_STORAGE_HOST') ?>/api/person/download_photo.php",
                 data: {
                     nik: person.nik,
                     filename: profilePic.filename,
@@ -637,6 +798,8 @@
                 success: successCallback,
                 error: xhrErrorCallback
             });
+        }else{
+            renderCardRowTakePhoto();
         }
     }
 </script>

@@ -102,11 +102,17 @@ class QueueModel {
         return null;
     }
 
-    public function findByNik($nik){
+    public function findByNik($nik, $status = []){
+        $where_status = '';
+        if(count($status)>0){
+            $where_status = " and status in ('".implode("', '", $status)."')";
+        }
         $queues = $this->db->query("
             select * 
             from queue 
-            where nik = '$nik'
+            where 
+                nik = '$nik'
+                $where_status
         ");
 
         if(count($queues)>0){

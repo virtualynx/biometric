@@ -20,14 +20,18 @@ if(empty($_POST['nik'])){
     exit;
 }
 
-if(empty($_FILES['photo'])){
+$is_base64 = false;
+if(!empty($_POST['is_base64']) && filter_var($_POST['is_base64'], FILTER_VALIDATE_BOOLEAN) == true){
+    $is_base64 = true;
+}
+
+if(!$is_base64 && empty($_FILES['photo'])){
     http_response_code(400);
     echo 'Missing Photo File';
     exit;
 }
 
 $photoType = PhotoModel::PHOTO_TYPE_BIOMETRIC;
-
 if(!empty($_POST['photo_type'])){
     $photoType = $_POST['photo_type'];
 }
@@ -49,8 +53,15 @@ if($photoType == PhotoModel::PHOTO_TYPE_BIOMETRIC){
     exit;
 }
 
+$files = null;
+if(!$is_base64){
+    $files = $_FILES["photo"];
+}else{
+    $files = $_POST["photo"];
+}
+
 $fu = new FileUploadModel();
-$filedata = $fu->upload($_FILES["photo"], $filename, "$targetPath/", true);
+$filedata = $fu->upload($files, $filename, "$targetPath/", true, $is_base64);
 
 $phm = new PhotoModel();    
 try{

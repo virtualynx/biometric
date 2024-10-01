@@ -12,6 +12,11 @@ if(empty($_POST['nik'])){
     exit;
 }
 
+$with_photo = true;
+if(!empty($_POST['without_photo']) && filter_var($_POST['without_photo'], FILTER_VALIDATE_BOOLEAN) == true){
+    $with_photo = false;
+}
+
 $pm = new PersonModel();
 
 try{
@@ -19,18 +24,21 @@ try{
 
     $person = json_decode(json_encode($person), true);
     $photos = $person['photos'];
-    $bioPhoto = null;
-    foreach($photos as $row){
-        if($row['type'] == 'biometric'){
-            $bioPhoto = $row;
-            break;
+
+    if($with_photo){
+        $bioPhoto = null;
+        foreach($photos as $row){
+            if($row['type'] == 'biometric'){
+                $bioPhoto = $row;
+                break;
+            }
         }
+        if(!empty($bioPhoto)){
+            $fum = new FileUploadModel();
+            $bioPhoto = $fum->getBase64String($bioPhoto['filename'], $bioPhoto['photo_path']);
+        }
+        $person['photo'] = $bioPhoto;
     }
-    if(!empty($bioPhoto)){
-        $fum = new FileUploadModel();
-        $bioPhoto = $fum->getBase64String($bioPhoto['filename'], $bioPhoto['photo_path']);
-    }
-    $person['photo'] = $bioPhoto;
 }catch(\Exception $e){
     echo $e->getMessage();
     exit;

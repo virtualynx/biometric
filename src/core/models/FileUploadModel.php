@@ -20,10 +20,11 @@ class FileUploadModel {
     }
 
     public function upload(
-        array $files, 
+        $files, 
         string $filename = null, 
         string $path = null,
-        bool $overwrite = false
+        bool $overwrite = false,
+        bool $is_base64 = false
     ): stdClass{
         $savePath = $this->uploadDir;
 
@@ -44,9 +45,14 @@ class FileUploadModel {
         if(empty($filename)){
             $filename = $files["name"];
         }else{
-            $exploded = explode(".", $files["name"]);
-            $extension = end($exploded);
-            $filename = $filename.'.'.$extension;
+            if(!$is_base64){
+                $exploded = explode(".", $files["name"]);
+                $extension = end($exploded);
+                $filename = $filename.'.'.$extension;
+            }else{
+                $extension = explode('/', mime_content_type($files))[1];
+                $filename = $filename.'.'.$extension;
+            }
         }
 
         $filePath = $targetPath.'/'.$filename;
@@ -63,7 +69,11 @@ class FileUploadModel {
             }
         }
 
-        move_uploaded_file($files["tmp_name"], $filePath);
+        if($is_base64){
+            file_put_contents($filePath, file_get_contents($files));
+        }else{
+            move_uploaded_file($files["tmp_name"], $filePath);
+        }
         // echo "<h3>File Successfully Uploaded</h3>";
 
         return json_decode(json_encode([

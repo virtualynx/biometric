@@ -1,7 +1,7 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
         <div class="card-body">
-            <div class="row">
+            <div id="card_row_register_buttons" class="row">
                 <div class="col-4 text-center">
                     <button 
                         type="button" 
@@ -11,18 +11,30 @@
                     >Pull from Queue</button>
                 </div>
                 <div class="col-8">
-                    <div class="form-group col-12">
+                    <div class="form-group">
                         <label for="datalist_manual_input" class="form-label"><h5>Or, Manual Register</h5></label>
                         <input 
                             id="datalist_manual_input" 
                             class="form-control" 
                             name="manual_input_register" 
                             list="datalist_manual" 
-                            onchange="pullManualRegister(this)"
+                            onchange="pullPersonByNik(this.value)"
+                            onfocus="this.value=''"
                             placeholder="Search NIK / Name ..."
                         >
                         <datalist id="datalist_manual"></datalist>
                     </div>
+                </div>
+            </div>
+
+            <div id="card_row_register_another" class="row">
+                <div class="col-12 text-center">
+                    <button 
+                        type="button" 
+                        id="button_pull_from_queue"
+                        class="btn btn-danger btn-block"
+                        onclick="clearRegisterProfile(); reEnqueue(); $('#datalist_manual_input').val('');"
+                    >Register Another Person</button>
                 </div>
             </div>
         </div>
@@ -32,14 +44,6 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
         <div class="card-body">
-            <div class="row">
-                <div class="col-12 text-right">
-                    <button id="button_clear_register_profile" type="button" class="close" aria-label="Close" onclick="clearRegisterProfile();reEnqueue();">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            </div>
-
             <h5 class="card-title">Register Biometrical Data for <span id="person_name" class="text-primary"></span></h5>
             <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
             
@@ -47,6 +51,13 @@
                 <div class="col-12 text-center">
                     <img id="person_photo" src="<?php echo !empty($person)? $person->photo: './res/icons/icons8-photo-gallery-100.png' ?>" alt="" />
                 </div>
+            </div>
+            <div id="card_row_take_photo" class="row mt-2">
+                <!-- <div class="col-2"></div> -->
+                <div class="col-12 px-5">
+                    <button type="button" class="btn btn-primary btn-block" onclick="openModalTakePhoto()">Take Photo</button>
+                </div>
+                <!-- <div class="col-2"></div> -->
             </div>
             <div class="row mt-2">
                 <div class="col-4">NIK</div>
@@ -96,7 +107,7 @@
         <div class="card-body">
             <div class="row mb-2">
                 <div class="col-12">
-                    <button type="button" class="btn btn-primary btn-block" onclick="completeRegistration()">Complete Registration</button>
+                    <button type="button" class="btn btn-success btn-block" onclick="completeRegistration()">Complete Registration</button>
                 </div>
             </div>
         </div>
@@ -105,6 +116,50 @@
 
 <!--Modal Photo-->
 <section>
+    <div class="modal fade" id="modalPhoto" data-backdrop="static" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title my-text my-pri-color" id="createEnrollmentTitle">Take Photo</h3>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="stopWebcam()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mx-3 mb-3">
+                        <div class="col-4">Camera List</div>
+                        <div class="col-8">
+                            <select id="take_photo_cam_list" onchange="cameraChanged()"></select>
+                        </div>
+                    </div>
+                    <div class="row mx-3">
+                        <div id="take_photo_cam" class="col-12">
+                            <video id="webcam" autoplay playsinline width="" height=""></video>
+                            <canvas id="webcam_canvas" class="d-none" width="" height=""></canvas>
+                        </div>
+                        <div id="take_photo_captured" class="col-12">
+                            <img src="" />
+                        </div>
+                    </div>
+                    <div class="row mx-3">
+                        <div class="col-6">
+                            <button class="btn btn-primary my-text8 btn-outline-danger border-0" type="button" onclick="takePhoto()">Take Photo</button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-success my-text8 btn-outline-danger border-0" type="button" onclick="savePhoto()">Save</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="form-row">
+                        <div class="col">
+                            <button class="btn btn-secondary my-text8 btn-outline-danger border-0" type="button" data-dismiss="modal" onclick="stopWebcam()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
 
 <!--Modal Fingerprint-->

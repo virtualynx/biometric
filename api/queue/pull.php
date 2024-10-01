@@ -21,10 +21,10 @@ $qm = new QueueModel();
 if(!empty($_POST['prefix'])){
     $queue = $qm->pullQueue($_POST['prefix']);
 }else if(!empty($_POST['nik'])){
-    $queue = $qm->findByNik($_POST['nik']);
+    $queue = $qm->findByNik($_POST['nik'], ['PENDING']);
     if(!empty($queue)){
         $qm->updateStatus($queue->queue_id, QueueModel::STATUS_PULLED);
     }
 }
 
-echo !empty($queue)? json_encode($queue): '';
+echo !empty($queue)? json_encode($queue): 'Data not found';
