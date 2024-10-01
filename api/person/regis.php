@@ -97,8 +97,12 @@ if(!empty($_FILES["documents"])){
 
 $person_arr = json_decode(json_encode($person), true);
 
-$queue = new QueueModel();
-$person_arr['queue'] = $queue->add('BMT', $person->nik);
+$qm = new QueueModel();
+$current_queue = $qm->findByNik($person->nik, [QueueModel::STATUS_PENDING, QueueModel::STATUS_PULLED]);
+if(empty($current_queue)){
+    $current_queue = $qm->add('BMT', $person->nik);
+}
+$person_arr['queue'] = $current_queue;
 $person = json_decode(json_encode($person_arr));;
 
 echo json_encode($person);
