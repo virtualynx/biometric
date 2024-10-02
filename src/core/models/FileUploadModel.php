@@ -5,6 +5,7 @@ require_once(dirname(__FILE__)."/EnvFileModel.php");
 require_once(dirname(__FILE__)."/../../utils/Helper.php");
 
 use biometric\src\core\utils\Helper;
+use SplFileInfo;
 use stdClass;
 
 class FileUploadModel {
@@ -42,17 +43,22 @@ class FileUploadModel {
             mkdir($targetPath, 0777, true);
         }
 
-        if(empty($filename)){
-            $filename = $files["name"];
-        }else{
-            if(!$is_base64){
-                $exploded = explode(".", $files["name"]);
-                $extension = end($exploded);
-                $filename = $filename.'.'.$extension;
-            }else{
-                $extension = explode('/', mime_content_type($files))[1];
-                $filename = $filename.'.'.$extension;
+        if($is_base64){
+            if(empty($filename)){
+                throw new \Exception('Filename cannot be empty for base64-based file transfer');
             }
+            
+            $extension = explode('/', mime_content_type($files))[1];
+        }else{
+            if(empty($files)){
+                throw new \Exception('Blob file cannot be empty for base64-based file transfer');
+            }
+            if(empty($filename)){
+                $filename = $files["name"];
+            }
+            
+            $filenameExploded = explode(".", $files["name"]);
+            $extension = end($filenameExploded);
         }
 
         $filePath = $targetPath.'/'.$filename;
@@ -68,7 +74,7 @@ class FileUploadModel {
                 $status = 'File already exists';
             }
         }
-
+        
         if($is_base64){
             file_put_contents($filePath, file_get_contents($files));
         }else{
@@ -79,6 +85,7 @@ class FileUploadModel {
         return json_decode(json_encode([
             'status' => $status,
             'filename' => $filename,
+            'extension' => $extension,
             'path' => $savePath.'/'.$filename
         ]));
     }

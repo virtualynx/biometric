@@ -37,7 +37,8 @@ class PhotoModel extends Database {
         string $filename, 
         string $savepath, 
         string $photoType = self::PHOTO_TYPE_BIOMETRIC, 
-        string $description = null
+        string $description = null,
+        string $extension = null
     ){
         $res = $this->execute("
             insert into photo(
@@ -46,6 +47,7 @@ class PhotoModel extends Database {
                 photo_path,
                 type,
                 description
+                ".(!empty($extension)? ",extension": "")."
             )
             values(
                 '$nik',
@@ -53,6 +55,7 @@ class PhotoModel extends Database {
                 '$savepath',
                 '$photoType',
                 '$description'
+                ".(!empty($extension)? ",'$extension'": "")."
             )
         ");
 

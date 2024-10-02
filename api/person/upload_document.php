@@ -20,9 +20,20 @@ if(empty($_POST['nik'])){
     exit;
 }
 
-if(empty($_FILES['document'])){
+$is_base64 = false;
+if(!empty($_POST['is_base64']) && filter_var($_POST['is_base64'], FILTER_VALIDATE_BOOLEAN) == true){
+    $is_base64 = true;
+}
+
+if(!$is_base64 && empty($_FILES['document'])){
     http_response_code(400);
     echo 'Missing Document File';
+    exit;
+}
+
+if($is_base64 && empty($_POST['filename'])){
+    http_response_code(400);
+    echo 'Missing parameter filename';
     exit;
 }
 
@@ -36,12 +47,21 @@ if(!empty($_POST['description'])){
     $desc = $_POST['description'];
 }
 
+$files = null;
+$filename = null;
+if(!$is_base64){
+    $files = $_FILES["document"];
+}else{
+    $files = $_POST["document"];
+    $filename = $_POST["filename"];
+}
+
 $fu = new FileUploadModel();
-$filedata = $fu->upload($_FILES['document'], null, "person/".$_POST['nik']."/documents/", true);
+$filedata = $fu->upload($files, $filename, "person/".$_POST['nik']."/documents/", true, $is_base64);
 
 $dcm = new DocumentModel();
 try{
-    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, $doc_type, $desc);
+    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, $doc_type, $desc, $filedata->extension);
 }catch(\mysqli_sql_exception $e){
     if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
         throw $e;

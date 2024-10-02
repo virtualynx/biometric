@@ -44,7 +44,7 @@ if(!empty($_POST['description'])){
 $filename = null;
 $targetPath = 'person/'.$_POST['nik'];
 if($photoType == PhotoModel::PHOTO_TYPE_BIOMETRIC){
-    $filename = $_POST['nik'];
+    $filename = $_POST['nik'].'.jpeg';
 }else if($photoType == PhotoModel::PHOTO_TYPE_DOCUMENTATION){
     $targetPath = $targetPath.'/photos';
 }else{
@@ -65,7 +65,7 @@ $filedata = $fu->upload($files, $filename, "$targetPath/", true, $is_base64);
 
 $phm = new PhotoModel();    
 try{
-    $phm->add($_POST['nik'], $filedata->filename, $filedata->path, $photoType, $desc);
+    $phm->add($_POST['nik'], $filedata->filename, $filedata->path, $photoType, $desc, $filedata->extension);
 }catch(\mysqli_sql_exception $e){
     if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
         throw $e;

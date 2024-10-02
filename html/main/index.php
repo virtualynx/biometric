@@ -552,10 +552,6 @@
             const canvas = document.querySelector("canvas#webcam_canvas");
             canvas.setAttribute('width', this.videoWidth);
             canvas.setAttribute('height', this.videoHeight);
-
-            const capturedFrame = document.querySelector("#take_photo_captured");
-            capturedFrame.setAttribute('width', this.videoWidth);
-            capturedFrame.setAttribute('height', this.videoHeight);
         });
 
         navigator.mediaDevices.getUserMedia({
@@ -570,13 +566,9 @@
             // videoElement.setAttribute('width', width);
             // videoElement.setAttribute('height', height);
             videoElement.srcObject = stream;
-
-            // const canvasElement = document.querySelector('canvas#webcam_canvas');
-            // canvasElement.setAttribute('width', width);
-            // canvasElement.setAttribute('height', height);
         });
     }
-    
+
     function openModalTakePhoto(){
         playCamera();
         
@@ -616,7 +608,7 @@
                 photo_type: 'biometric',
                 photo: base64,
                 is_base64: true,
-                filename: `${nik}.jpg`
+                filename: `${nik}.jpeg`
             },
             // processData: false,
             dataType: "text",

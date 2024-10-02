@@ -23,7 +23,8 @@ class DocumentModel extends Database {
         string $filename, 
         string $savepath, 
         string $documentType = self::DOCUMENT_TYPE_DOCUMENT, 
-        string $description = null
+        string $description = null,
+        string $extension = null
     ){
         $res = $this->execute("
             insert into document(
@@ -32,6 +33,7 @@ class DocumentModel extends Database {
                 type,
                 description,
                 file_path
+                ".(!empty($extension)? ",extension": "")."
             )
             values(
                 '$nik',
@@ -39,6 +41,7 @@ class DocumentModel extends Database {
                 '$documentType',
                 '$description',
                 '$savepath'
+                ".(!empty($extension)? ",'$extension'": "")."
             )
         ");
 
