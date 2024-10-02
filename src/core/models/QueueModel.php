@@ -81,7 +81,7 @@ class QueueModel extends Database{
         return count($queues)>0? $queues[0]: null;
     }
 
-    public function find($queue_id): stdClass{
+    public function find($queue_id){
         $queues = $this->query("
             select * 
             from queue 

@@ -150,8 +150,6 @@
     var fmdArray = [];
     var currentScanIndex = -1;
     var cameraStream = null;
-    let _videoWidth = 0;
-    let _videoHeight = 0;
 
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
@@ -257,11 +255,16 @@
                     if(res.status){
                         if(res.status == 'PENDING' || res.status == 'COMPLETED'){
                             localStorage.removeItem('queue_id');
+                            localStorage.removeItem("is_from_queue");
                             pullFromQueue();
                         }else if(res.status == 'PULLED'){
                             localStorage.setItem("is_from_queue", true);
                             setRegisterProfile(res.queue.person);
                         }
+                    }else{
+                        localStorage.removeItem('queue_id');
+                        localStorage.removeItem("is_from_queue");
+                        pullFromQueue();
                     }
                 },
                 error: xhrErrorCallback
@@ -278,12 +281,18 @@
             },
             dataType: "json",
             success: (res) => {
-                console.log('queue/pull', res);
+                // console.log('queue/pull', res);
                 localStorage.setItem("queue_id", res.queue_id);
                 localStorage.setItem("is_from_queue", true);
                 setRegisterProfile(res.person);
             },
-            error: xhrErrorCallback
+            error: (xhr, status, error) => {
+                if(xhr.responseText != 'Data not found'){
+                    console.log('xhr', xhr);
+                    console.log('status', status);
+                    console.log('error', error);
+                }
+            }
         });
     }
 
@@ -543,6 +552,10 @@
             const canvas = document.querySelector("canvas#webcam_canvas");
             canvas.setAttribute('width', this.videoWidth);
             canvas.setAttribute('height', this.videoHeight);
+
+            const capturedFrame = document.querySelector("#take_photo_captured");
+            capturedFrame.setAttribute('width', this.videoWidth);
+            capturedFrame.setAttribute('height', this.videoHeight);
         });
 
         navigator.mediaDevices.getUserMedia({
@@ -554,13 +567,13 @@
             }
         }).then(stream => {
             const videoElement = document.querySelector('video#webcam');
-            videoElement.setAttribute('width', width);
-            videoElement.setAttribute('height', height);
+            // videoElement.setAttribute('width', width);
+            // videoElement.setAttribute('height', height);
             videoElement.srcObject = stream;
 
-            const canvasElement = document.querySelector('canvas#webcam_canvas');
-            canvasElement.setAttribute('width', width);
-            canvasElement.setAttribute('height', height);
+            // const canvasElement = document.querySelector('canvas#webcam_canvas');
+            // canvasElement.setAttribute('width', width);
+            // canvasElement.setAttribute('height', height);
         });
     }
     
@@ -574,19 +587,20 @@
 
     function takePhoto(){
         const video = document.querySelector('video#webcam');
+
         const canvas = document.querySelector("canvas#webcam_canvas");
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
    	    let base64 = canvas.toDataURL('image/jpeg');
 
-        $('#take_photo_captured').find('img').attr('src', base64);
+        $('#take_photo_captured').attr('src', base64);
 
         $('#take_photo_cam').addClass('d-none');
         $('#take_photo_captured').removeClass('d-none');
     }
 
     function savePhoto(){
-        let base64 = $('#take_photo_captured').find('img').attr('src');
+        let base64 = $('#take_photo_captured').attr('src');
         if(base64?.length == 0){
             alert('Take photo before saving');
             return;

@@ -146,15 +146,15 @@
                         </div>
                     </div>
                     <div class="row mx-3">
-                        <div id="take_photo_cam" class="col-12">
-                            <video id="webcam" autoplay playsinline style="max-width: 100%"></video>
-                            <canvas id="webcam_canvas" class="d-none" style="max-width: 100%"></canvas>
-                        </div>
-                        <div id="take_photo_captured" class="col-12">
-                            <img src="" />
+                        <div class="col-12">
+                            <div id="take_photo_cam" style="max-width: 100%">
+                                <video id="webcam" autoplay playsinline style="width: 100%"></video>
+                                <canvas id="webcam_canvas" class="d-none" style="width: 100%"></canvas>
+                            </div>
+                            <img id="take_photo_captured" src="" style="max-width: 100%"/>
                         </div>
                     </div>
-                    <div class="row mx-3">
+                    <div class="row mx-3 mt-2">
                         <div class="col-6">
                             <button class="btn btn-primary my-text8 btn-outline-danger border-0" type="button" onclick="takePhoto()">Take Photo</button>
                         </div>
