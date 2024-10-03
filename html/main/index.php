@@ -805,12 +805,62 @@
         });
     }
 
-    function clearVerifyData(){
+    function fetchVerifyProfile(){
+        let nik = $('[name="datalist_verify_input"]').val()?.trim();
+        if(nik?.length == 0)return;
+
+        $.ajax({
+            type: "POST",
+            url: "./api/person/getinfo.php",
+            data: {
+                nik: nik,
+                without_photo: true
+            },
+            dataType: "json",
+            success: (res) => {
+                // console.log('fetchVerifyProfile', res);
+                if(res){
+                    setVerifyProfile(res);
+                }
+            },
+            error: (xhr, status, error) => {
+                if(xhr.responseText == 'Data not found'){
+                    clearVerifyProfile();
+                    $('#verify_not_found_label').removeClass('d-none');
+                    setTimeout(()=>{
+                        $('#verify_not_found_label').addClass('d-none');
+                    }, 2500);
+                }
+                console.log('xhr', xhr);
+                console.log('status', status);
+                console.log('error', error);
+            }
+        });
+    }
+
+    function setVerifyProfile(person){
+        // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
+        $('#verify_photo').attr('src', noPhotoIcon);
+        fetchProfilePhoto(person, (res) => {
+            if(res){
+                $('#verify_photo').attr('src', res);
+            }
+        });
+        $('#verify_nik').html(person.nik);
+        $('#verify_name').html(person.name);
+        $('#verify_address').html(person.address);
+        $('#verify_district').html(person.village);
+    }
+
+    function clearVerifyProfile(){
         $('#verify_photo').attr('src', noPhotoIcon);
         $('#verify_nik').html('');
         $('#verify_name').html('');
         $('#verify_address').html('');
         $('#verify_district').html('');
+
+        $('#verify_found_label').addClass('d-none');
+        $('#verify_not_found_label').addClass('d-none');
     }
 
     function onSamplesAcquired_verify_callback(e){
@@ -818,7 +868,7 @@
         $('#fingerprint-verify').find('span').removeClass('icon-fp-scanning');
         $('#fingerprint-verify').find('span').addClass('icon-fp');
 
-        clearVerifyData();
+        // clearVerifyProfile();
 
         let samples = JSON.parse(e.samples);
         let fmd = samples[0].Data;
@@ -833,8 +883,11 @@
             },
             dataType: "json",
             success: (res) => {
-                console.log('onSamplesAcquired_verify_callback', res);
-                $('#verify_photo').attr('src', noPhotoIcon);
+                // console.log('onSamplesAcquired_verify_callback', res);
+                
+                $('#verify_match').addClass('d-none');
+                $('#verify_not_match').addClass('d-none');
+
                 if(res.person){
                     // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
                     fetchProfilePhoto(res.person, (res) => {
@@ -846,11 +899,19 @@
                     $('#verify_name').html(res.person.name);
                     $('#verify_address').html(res.person.address);
                     $('#verify_district').html(res.person.village);
-                }else{
-                    $('#verify_not_found_label').removeClass('d-none');
+
+                    $('#verify_match').removeClass('d-none');
                     setTimeout(()=>{
-                        $('#verify_not_found_label').addClass('d-none');
-                    }, 2500)
+                        $('#verify_match').addClass('d-none');
+                    }, 7000);
+                }else{
+                    if(nik?.length == 0){
+                        $('#verify_photo').attr('src', noPhotoIcon);
+                    }
+                    $('#verify_not_match').removeClass('d-none');
+                    setTimeout(()=>{
+                        $('#verify_not_match').addClass('d-none');
+                    }, 7000);
                 }
 
                 setTimeout(beginCaptureVerify, 500);

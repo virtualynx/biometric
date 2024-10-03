@@ -2,6 +2,23 @@
     <div class="col-12 card">
         <div class="card-body">
             <h5 class="card-title">Verify Biometrical Data (<span class="fp-device-status" class="">?</span>)</h5>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="form-group">
+                        <input 
+                            class="form-control" 
+                            name="datalist_verify_input" 
+                            list="datalist_verify" 
+                            onfocus="this.value=''"
+                            onchange="fetchVerifyProfile()"
+                            placeholder="Search NIK / Name ..."
+                        >
+                        <datalist id="datalist_verify"></datalist>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-12">
                     <div id="fingerprint-thumb" class="form-row justify-content-center">
@@ -27,9 +44,20 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-12 text-right">
-                    <button type="button" class="close" aria-label="Close" onclick="clearVerifyData()">
+                    <button type="button" class="close" aria-label="Close" onclick="clearVerifyProfile()">
                         <span aria-hidden="true">&times;</span>
                     </button>
+                </div>
+            </div>
+            
+            <div id="verify_match" class="row d-none">
+                <div class="col-12 text-center">
+                    <h2 class="form-label text-success">Fingerprint data matched !!</h2>
+                </div>
+            </div>
+            <div id="verify_not_match" class="row d-none">
+                <div class="col-12 text-center">
+                    <h2 class="form-label text-danger">Fingerprint data not matched !!</h2>
                 </div>
             </div>
             <div id="verify_not_found_label" class="row d-none">

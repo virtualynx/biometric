@@ -48,6 +48,10 @@ class PersonModel extends Database {
         $person['documents'] = $this->documentModel->get($nik);
         $photos = $this->photoModel->get($nik);
         $person['photos'] = $photos;
+
+        /**
+         * DO NOT LOAD PHOTO BY DEFAULT
+         */
         // $bioPhoto = null;
         // foreach($photos as $row){
         //     if($row->type == 'biometric'){
@@ -59,6 +63,64 @@ class PersonModel extends Database {
         //     $bioPhoto = $this->fileUploadModel->getBase64String($bioPhoto->filename, $bioPhoto->photo_path);
         // }
         // $person['photo'] = $bioPhoto;
+
+        /**
+         * GET STATUS
+         */
+        $acts = $this->query("
+            select 
+                id,
+                name,
+                (
+                    case when (
+                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = mact.id)
+                    ) then
+                        1
+                    else
+                        0
+                    end
+                ) as status
+            from 
+                master_act mact
+            order by
+                `order`
+        ");
+        $latestStatus = null;
+        foreach($acts as $row){
+            if(intval($row->status) == 0){
+                $latestStatus = $row;
+                break;
+            }
+        }
+        if(empty($latestStatus)){
+            $latestStatus = 'Done';
+        }
+        $person['status'] = $latestStatus->name;
+
+        /**
+         * DOCUMENT VERIFICATION STATUS
+         */
+        $docs = $this->query("
+            select 
+                id,
+                name,
+                (
+                    case when (
+                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = mact.id)
+                    ) then
+                        1
+                    else
+                        0
+                    end
+                ) as status
+            from 
+                master_doc_checklist mact
+            order by
+                `order`
+        ");
+        $person['doc_verification'] = [
+
+        ];
 
         return json_decode(json_encode($person));
     }
