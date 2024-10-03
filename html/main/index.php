@@ -207,25 +207,58 @@
     }
 
     function fetchPersonList(){
+        // $.ajax({
+        //     type: "GET",
+        //     url: "./api/queue/list.php",
+        //     data: {},
+        //     dataType: "json",
+        //     success: (res) => {
+        //         // console.log('queue/list', res);
+        //         if(res && res.length > 0){
+        //             $('#datalist_manual').html('');
+        //             res.forEach(a => {
+        //                 if(a.status == 'PENDING'){
+        //                     $('#datalist_manual').append(`
+        //                         <option value="${a.nik}">
+        //                             ${a.person?.name} (${a.nik})
+        //                         </option>
+        //                     `);
+        //                 }
+        //             });
+        //             $('#datalist_manual').trigger("change");
+        //         }
+        //     },
+        //     error: (xhr, status, error) => {
+        //         // if(xhr.responseText != ''){
+        //         //     console.log('error', err);
+        //         // }
+        //     }
+        // });
+
         $.ajax({
             type: "GET",
-            url: "./api/queue/list.php",
+            url: "./api/person/list.php",
             data: {},
             dataType: "json",
             success: (res) => {
-                console.log('queue/list', res);
+                console.log('person/list', res);
                 if(res && res.length > 0){
                     $('#datalist_manual').html('');
+                    $('#datalist_verify').html('');
                     res.forEach(a => {
-                        if(a.status == 'PENDING'){
-                            $('#datalist_manual').append(`
-                                <option value="${a.nik}">
-                                    ${a.person?.name} (${a.nik})
-                                </option>
-                            `);
-                        }
+                        $('#datalist_manual').append(`
+                            <option value="${a.nik}">
+                                ${a.name} (${a.nik})
+                            </option>
+                        `);
+                        $('#datalist_verify').append(`
+                            <option value="${a.nik}">
+                                ${a.name} (${a.nik})
+                            </option>
+                        `);
                     });
                     $('#datalist_manual').trigger("change");
+                    $('#datalist_verify').trigger("change");
                 }
             },
             error: (xhr, status, error) => {
@@ -789,12 +822,14 @@
 
         let samples = JSON.parse(e.samples);
         let fmd = samples[0].Data;
+        let nik = $('[name="datalist_verify_input"]').val()?.trim();
         
         $.ajax({
             type: "POST",
             url: "./api/fingerprint/verify.php",
             data: {
-                fmd: fmd
+                fmd: fmd,
+                nik: nik
             },
             dataType: "json",
             success: (res) => {

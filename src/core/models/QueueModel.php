@@ -25,17 +25,23 @@ class QueueModel extends Database{
         ");
 
         $queues = json_decode(json_encode($queues), true);
+        $results = [];
+        foreach($queues as $row){
+            try{
+                $row['queue_code'] = $this->getQueueCode($row);
+                $row['person'] = (new PersonModel())->get($row['nik']);
 
-        foreach($queues as &$row){
-            $row['queue_code'] = $this->getQueueCode($row);
-            $row['person'] = (new PersonModel())->get($row['nik']);
-
-            unset($row);
+                $results []= $row;
+            }catch(\Exception $e){
+                if($e->getMessage() != 'Data not found'){
+                    throw $e;
+                }
+            }
         }
 
-        $queues = json_decode(json_encode($queues));
+        $results = json_decode(json_encode($results));
 
-        return $queues;
+        return $results;
     }
 
     public function add($prefix, $nik): stdClass{
