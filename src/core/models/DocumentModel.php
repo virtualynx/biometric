@@ -13,30 +13,31 @@ class DocumentModel extends Database {
     }
 
     public function get(string $nik): array{
-        // $docs = $this->query("
-        //     select 
-        //         doc.nik,
-        //         doc.filename,
-        //         doc.extension,
-        //         doc.file_path,
-        //         mdt.name as `type`,
-        //         doc.description,
-        //         doc.created_at,
-        //         doc.updated_at 
-        //     from 
-        //         document doc
-        //         left join master_doc_type mdt on doc.`type` = mdt.id
-        //     where 
-        //         nik = '$nik'
-        // ");
         $docs = $this->query("
             select 
-                doc.*
+                doc.nik,
+                doc.filename,
+                doc.extension,
+                mdt.name as `type`,
+                doc.description,
+                doc.file_path,
+                doc.file_blob,
+                doc.created_at,
+                doc.updated_at 
             from 
                 document doc
+                left join master_doc_type mdt on doc.`type` = mdt.id
             where 
                 nik = '$nik'
         ");
+        // $docs = $this->query("
+        //     select 
+        //         doc.*
+        //     from 
+        //         document doc
+        //     where 
+        //         nik = '$nik'
+        // ");
 
         return $docs;
     }
