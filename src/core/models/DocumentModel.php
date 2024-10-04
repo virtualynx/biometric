@@ -13,7 +13,15 @@ class DocumentModel extends Database {
     }
 
     public function get(string $nik): array{
-        $docs = $this->query("select * from document where nik = '$nik'");
+        $docs = $this->query("
+            select 
+                * 
+            from 
+                document 
+                left join 
+            where 
+                nik = '$nik'
+        ");
 
         return $docs;
     }

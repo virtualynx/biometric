@@ -106,7 +106,7 @@ class PersonModel extends Database {
                 name,
                 (
                     case when (
-                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = mact.id)
+                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = mdt.id)
                     ) then
                         1
                     else
@@ -114,7 +114,7 @@ class PersonModel extends Database {
                     end
                 ) as status
             from 
-                master_doc_checklist mact
+                master_doc_type mdt
             order by
                 `order`
         ");
