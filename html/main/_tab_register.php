@@ -1,6 +1,6 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
-        <div class="card-body">
+        <div class="card-body" >
             <div id="card_row_register_buttons" class="row">
                 <div class="col-4 text-center">
                     <button 
