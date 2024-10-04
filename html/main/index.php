@@ -543,11 +543,12 @@
             dataType: "json",
             success: (res) => {
                 stopCapture();
-                if(res?.status == 'success'){
+                if(res.status == 'success'){
                     $('#modalFingerprint').modal('hide');
+                    $('#person_has_fingerprint').addClass('d-none');
                     alert("Fingerprint registration success");
                 }else{
-                    alert('Fingerprint registration failed, please register again');
+                    alert(`Failed: ${res.status}`);
                 }
             },
             error: xhrErrorCallback
@@ -885,6 +886,9 @@
             success: (res) => {
                 // console.log('onSamplesAcquired_verify_callback', res);
                 
+                $('#verify_found_label').addClass('d-none');
+                $('#verify_not_found_label').addClass('d-none');
+
                 $('#verify_match').addClass('d-none');
                 $('#verify_not_match').addClass('d-none');
 
@@ -900,23 +904,39 @@
                     $('#verify_address').html(res.person.address);
                     $('#verify_district').html(res.person.village);
 
-                    $('#verify_match').removeClass('d-none');
+                    let labelToShown = '';
+                    if(nik.length == 0){
+                        labelToShown = '#verify_found_label';
+                    }else{
+                        labelToShown = '#verify_match';
+                    }
+
+                    $(labelToShown).removeClass('d-none');
                     setTimeout(()=>{
-                        $('#verify_match').addClass('d-none');
+                        $(labelToShown).addClass('d-none');
                     }, 7000);
                 }else{
-                    if(nik?.length == 0){
+                    let labelToShown = '';
+                    if(nik.length == 0){
                         $('#verify_photo').attr('src', noPhotoIcon);
+                        labelToShown = '#verify_not_found_label';
+                    }else{
+                        labelToShown = '#verify_not_match';
                     }
-                    $('#verify_not_match').removeClass('d-none');
+
+                    $(labelToShown).removeClass('d-none');
                     setTimeout(()=>{
-                        $('#verify_not_match').addClass('d-none');
+                        $(labelToShown).addClass('d-none');
                     }, 7000);
                 }
 
                 setTimeout(beginCaptureVerify, 500);
             },
-            error: xhrErrorCallback
+            error: (xhr, status, error) => {
+                if(xhr.responseText == 'No enrolled fingerprint data'){
+                    alert('No enrolled fingerprint data');
+                }
+            }
         });
     }
 

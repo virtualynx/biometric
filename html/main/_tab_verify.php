@@ -60,9 +60,14 @@
                     <h2 class="form-label text-danger">Fingerprint data not matched !!</h2>
                 </div>
             </div>
+            <div id="verify_found_label" class="row d-none">
+                <div class="col-12 text-center">
+                    <h2 class="form-label text-success">Fingerprint data found !!</h2>
+                </div>
+            </div>
             <div id="verify_not_found_label" class="row d-none">
                 <div class="col-12 text-center">
-                    <h2 class="form-label text-danger">Data Not Found !!</h2>
+                    <h2 class="form-label text-danger">Fingerprint data not found !!</h2>
                 </div>
             </div>
             <div class="row">

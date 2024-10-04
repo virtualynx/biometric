@@ -20,6 +20,10 @@ if(!empty($_POST['nik'])){
     $nik = $_POST['nik'];
     $fp = new Fingerprint();
     $fingerprints = $pm->getFingerprints($nik);
+    if(count($fingerprints) == 0){
+        echo 'No enrolled fingerprint data';
+        exit;
+    }
 
     $fmdArr = [];
     foreach($fingerprints as $row_fp){

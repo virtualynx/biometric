@@ -2,6 +2,7 @@
 
 use biometric\src\core\Fingerprint;
 use biometric\src\core\models\FingerprintModel;
+use biometric\src\core\models\PersonModel;
 
 require_once(dirname(__FILE__)."/../_api_header.php");
 require_once(dirname(__FILE__)."/../../src/core/models/FingerprintModel.php");
@@ -27,21 +28,29 @@ foreach($fmds as $row){
     }
 }
 
+$pm = new PersonModel();
+$existing = $pm->getByFmd($indexFmds[0]);
+if(empty($existing->person)){
+    $existing = $pm->getByFmd($thumbFmds[0]);
+}
+if(!empty($existing->person)){
+    echo json_encode(['status' => 'Already registered under another person']);
+    exit;
+}
+
 $fp = new Fingerprint();
 $response = $fp->enroll($indexFmds, $thumbFmds);
 $finger1 = $response->finger1;
 $finger2 = $response->finger2;
 
-$status = 'success';
 if($finger1 == null || $finger2 == null){
-    $status = 'failed';
+    echo json_encode(['status' => 'Insufficient samples']);
+    exit;
 }
 
-if($status == 'success'){
-    $fpm = new FingerprintModel();
-    $res = $fpm->clearFingerprintsForNik($_POST["nik"]);
-    $fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_INDEX, $finger1);
-    $fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_THUMB, $finger2);
-}
+$fpm = new FingerprintModel();
+$res = $fpm->clearFingerprintsForNik($_POST["nik"]);
+$fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_INDEX, $finger1);
+$fpm->add($_POST["nik"], FingerprintModel::HAND_SIDE_RIGHT, FingerprintModel::FINGER_TYPE_THUMB, $finger2);
 
-echo json_encode(['status' => $status]);
+echo json_encode(['status' => 'success']);
