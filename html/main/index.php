@@ -647,9 +647,7 @@ $env = new EnvFileModel();
         });
 
         navigator.mediaDevices.getUserMedia({
-            'audio': {
-                'echoCancellation': true
-            },
+            'audio': false,
             'video': {
                 'deviceId': cameraId,
                 'width': {
