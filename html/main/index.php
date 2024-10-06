@@ -100,10 +100,10 @@ $env = new EnvFileModel();
         }
 
         body {
-            background: rgb(213, 34, 34);
-            background: linear-gradient(166deg, rgba(213, 34, 34, 1) 35%, rgba(135, 0, 0, 0.07326680672268904) 100%);
+            background: url("./res/svg/shiny.svg");
             background-repeat: no-repeat;
             background-position: center;
+            background-size: cover;
             height: 100vh;
             display: grid;
             place-items: center;
@@ -153,6 +153,7 @@ $env = new EnvFileModel();
             border: none;
             border-radius: 6px; 
         }
+        
         
     </style>
 
@@ -291,6 +292,7 @@ $env = new EnvFileModel();
         //     }
         // });
 
+        
         $.ajax({
             type: "GET",
             url: "./api/person/list.php",
