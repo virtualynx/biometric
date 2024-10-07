@@ -19,6 +19,8 @@ $env = new EnvFileModel();
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="./src/css/bootstrap.css">
     <link rel="stylesheet" href="./src/css/custom2.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
 
     <style>
         @font-face {
@@ -127,11 +129,13 @@ $env = new EnvFileModel();
             border-radius: 10px;
             padding: 5px 10px 15px;
         }
+
         .nav-tabs {
             border-bottom: none;
         }
 
-        .nav-tabs .nav-link.active, .nav-tabs .nav-item.show .nav-link {
+        .nav-tabs .nav-link.active,
+        .nav-tabs .nav-item.show .nav-link {
             border: none;
         }
 
@@ -152,14 +156,51 @@ $env = new EnvFileModel();
         .btn-primary:hover {
             background-color: rgb(213, 34, 34, 0.8);
             border: none;
-            border-radius: 6px; 
+            border-radius: 6px;
         }
-        
-        
+
+        .btn-primary:focus,
+        .btn-primary:active {
+            background-color: rgb(213, 34, 34, 1) !important;
+        }
+
+        .btn-primary:focus {
+            outline: 2px solid red;
+            box-shadow: none;
+        }
+
+        .btn-success {
+            background-color: rgb(54, 94, 50, 0.8);
+            border: none;
+            border-radius: 6px;
+        }
+
+        .btn-success:hover {
+            background-color: rgb(54, 94, 50, 1);
+            border: none;
+            border-radius: 6px;
+        }
+
+        .btn-success:focus,
+        .btn-success:active {
+            background-color: rgb(54, 94, 50, 1) !important;
+        }
+
+        .btn-success:focus {
+            outline: 2px solid #81A263;
+            box-shadow: none;
+        }
     </style>
 
     <title>Biometric</title>
 </head>
+
+<?php
+    $pm = new PersonModel();
+    if(!empty($_GET['nik'])){
+        $person = $pm->get($_GET['nik']);
+    }
+?>
 
 <body>
     <!-- Optional JavaScript -->
@@ -219,21 +260,21 @@ $env = new EnvFileModel();
         if (!empty($_GET['nik'])) {
             $person = $pm->get($_GET['nik']);
         ?>
-            $('[name="manual_input_register"]').val("<?php echo $_GET['nik'] ?>");
-            pullPersonByNik("<?php echo $_GET['nik'] ?>");
+                $('[name="manual_input_register"]').val("<?php echo $_GET['nik'] ?>");
+                pullPersonByNik("<?php echo $_GET['nik'] ?>");
 
-            $('#button_pull_from_queue').attr('disabled', true);
-            $('[name="manual_input_register"]').attr('readonly', true);
-            $('#button_clear_register_profile').attr('disabled', true);
+                $('#button_pull_from_queue').attr('disabled', true);
+                $('[name="manual_input_register"]').attr('readonly', true);
+                $('#button_clear_register_profile').attr('disabled', true);
         <?php
-        } else {
+            } else {
         ?>
-            let queueId = localStorage.getItem("queue_id");
-            if (queueId) {
-                pullFromQueue();
-            }
+                let queueId = localStorage.getItem("queue_id");
+                if (queueId) {
+                    pullFromQueue();
+                }
         <?php
-        }
+            }
         ?>
 
         renderCardRowRegisterButtons();
@@ -293,7 +334,7 @@ $env = new EnvFileModel();
         //     }
         // });
 
-        
+
         $.ajax({
             type: "GET",
             url: "./api/person/list.php",
@@ -604,11 +645,11 @@ $env = new EnvFileModel();
             dataType: "json",
             success: (res) => {
                 stopCapture();
-                if(res.status == 'success'){
+                if (res.status == 'success') {
                     $('#modalFingerprint').modal('hide');
                     $('#person_has_fingerprint').addClass('d-none');
                     alert("Fingerprint registration success");
-                }else{
+                } else {
                     alert(`Failed: ${res.status}`);
                 }
             },
@@ -757,16 +798,17 @@ $env = new EnvFileModel();
         // $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
         $('#person_photo').attr('src', noPhotoIcon);
         $('#person_name').html(person.name);
+        $('#person_name_photo').html(person.name);
         $('#person_nik').html(person.nik);
         $('#person_address').html(person.address);
         $('#person_district').html(person.village);
 
         fetchProfilePhoto(person, (res) => {
-            if (res) {
-                $('#person_photo').attr('src', res);
-            }
-            renderCardRowTakePhoto();
-        });
+        if (res) {
+            $('#person_photo').attr('src', res);
+        }
+        renderCardRowTakePhoto();
+    });
 
         if (person.biometric_status.fingerprint == 'completed') {
             $('#person_has_fingerprint').removeClass('d-none');
@@ -783,6 +825,7 @@ $env = new EnvFileModel();
         $('#person_photo').attr('src', noPhotoIcon);
         $('#person_nik').html('');
         $('#person_name').html('');
+        $('#person_name_photo').html('');
         $('#person_address').html('');
         $('#person_district').html('');
 
@@ -950,7 +993,7 @@ $env = new EnvFileModel();
             dataType: "json",
             success: (res) => {
                 // console.log('onSamplesAcquired_verify_callback', res);
-                
+
                 $('#verify_found_label').addClass('d-none');
                 $('#verify_not_found_label').addClass('d-none');
 
@@ -970,27 +1013,27 @@ $env = new EnvFileModel();
                     $('#verify_district').html(res.person.village);
 
                     let labelToShown = '';
-                    if(nik.length == 0){
+                    if (nik.length == 0) {
                         labelToShown = '#verify_found_label';
-                    }else{
+                    } else {
                         labelToShown = '#verify_match';
                     }
 
                     $(labelToShown).removeClass('d-none');
-                    setTimeout(()=>{
+                    setTimeout(() => {
                         $(labelToShown).addClass('d-none');
                     }, 7000);
-                }else{
+                } else {
                     let labelToShown = '';
-                    if(nik.length == 0){
+                    if (nik.length == 0) {
                         $('#verify_photo').attr('src', noPhotoIcon);
                         labelToShown = '#verify_not_found_label';
-                    }else{
+                    } else {
                         labelToShown = '#verify_not_match';
                     }
 
                     $(labelToShown).removeClass('d-none');
-                    setTimeout(()=>{
+                    setTimeout(() => {
                         $(labelToShown).addClass('d-none');
                     }, 7000);
                 }
@@ -998,7 +1041,7 @@ $env = new EnvFileModel();
                 setTimeout(beginCaptureVerify, 500);
             },
             error: (xhr, status, error) => {
-                if(xhr.responseText == 'No enrolled fingerprint data'){
+                if (xhr.responseText == 'No enrolled fingerprint data') {
                     alert('No enrolled fingerprint data');
                 }
             }

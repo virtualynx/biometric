@@ -1,42 +1,48 @@
 <div class="row mx-3 mb-3">
     <div class="col-12 card">
-        <div class="card-body" >
+        <div class="card-body">
             <div id="card_row_register_buttons" class="row">
                 <div class="col-4 text-center">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         id="button_pull_from_queue"
                         class="btn btn-primary btn-block"
-                        onclick="pullFromQueue()"
-                    >Pull from Queue</button>
+                        onclick="pullFromQueue()">Pull from Queue</button>
                 </div>
                 <div class="col-8">
                     <div class="form-group">
-                        <label for="datalist_manual_input" class="form-label"><h5>Or, Manual Register</h5></label>
-                        <input 
-                            id="datalist_manual_input" 
-                            class="form-control" 
-                            name="manual_input_register" 
-                            list="datalist_manual" 
+                        <label for="datalist_manual_input" class="form-label">
+                            <h5>Or, Manual Register</h5>
+                        </label>
+                        <input
+                            id="datalist_manual_input"
+                            class="form-control"
+                            name="manual_input_register"
+                            list="datalist_manual"
                             onchange="pullPersonByNik(this.value)"
                             onfocus="this.value=''"
-                            placeholder="Search NIK / Name ..."
-                        >
+                            placeholder="Search NIK / Name ...">
                         <datalist id="datalist_manual"></datalist>
                     </div>
                 </div>
             </div>
 
             <div id="card_row_register_another" class="row">
-                <div class="col-12 text-center">
-                    <button 
-                        type="button" 
+                <div class="col-2 text-center">
+                    <button
+                        type="button"
                         id="button_pull_from_queue"
-                        class="btn btn-danger btn-block"
-                        onclick="clearRegisterProfile(); reEnqueue(); $('#datalist_manual_input').val('');"
-                    >Register Another Person</button>
+                        class="btn btn-primary btn-block"
+                        onclick="clearRegisterProfile(); reEnqueue(); $('#datalist_manual_input').val('');">Daftar lainnya</button>
+                </div>
+                <div class="col-6 px-5" id="card_row_take_photo" class="row">
+                    <button type="button" class="btn btn-primary btn-block" onclick="openModalTakePhoto()">Ambil Foto <span id="person_name_photo" style="color: white; font-weight:bold"></span> <i class="fas fa-camera" style="margin-left: 5px;"></i> </button>
+                </div>
+                <div class="col-4">
+                    <button type="button" class="btn btn-primary btn-block" onclick="openModalTakeFingerprint()">Ambil Fingerprint <i class="fas fa-fingerprint" style="margin-left: 5px;"></i></button>
                 </div>
             </div>
+
         </div>
     </div>
 </div>
@@ -51,10 +57,10 @@
                     </button>
                 </div>
             </div>
-            
-            <h5 class="card-title">Register Biometrical Data for <span id="person_name" class="text-primary"></span></h5>
+
+            <h5 class="card-title">Data Biometric <span id="person_name" style="color: black;"></span></h5>
             <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
-            
+
             <div class="row">
                 <div class="col-12 text-center">
                     <img 
@@ -65,24 +71,26 @@
                     />
                 </div>
             </div>
-            <div id="card_row_take_photo" class="row mt-2">
-                <!-- <div class="col-2"></div> -->
+            <!-- <div id="card_row_take_photo" class="row mt-2">
                 <div class="col-12 px-5">
                     <button type="button" class="btn btn-primary btn-block" onclick="openModalTakePhoto()">Take Photo</button>
                 </div>
-                <!-- <div class="col-2"></div> -->
-            </div>
-            <div class="row mt-2">
-                <div class="col-4">NIK</div>
-                <div class="col-8" id="person_nik"><?php echo !empty($person)? $person->nik: '' ?></div>
-            </div>
-            <div class="row">
-                <div class="col-4">Address</div>
-                <div class="col-8" id="person_address"><?php echo !empty($person)? $person->address: '' ?></div>
-            </div>
-            <div class="row">
-                <div class="col-4">District</div>
-                <div class="col-8" id="person_district"><?php echo !empty($person)? $person->village: '' ?></div>
+            </div> -->
+            <div>
+                <div class="row mt-2 text-center">
+                    <div class="col-4">
+                        <div style="font-weight: 400;">NIK</div>
+                        <div style="font-weight:bolder" id="person_nik"><?php echo !empty($person) ? $person->nik : '' ?></div>
+                    </div>
+                    <div class="col-4">
+                        <div style="font-weight: 400;">Address</div>
+                        <div style="font-weight:bolder"  id="person_address"><?php echo !empty($person) ? $person->address : '' ?></div>
+                    </div>
+                    <div class="col-4">
+                        <div style="font-weight: 400;">District</div>
+                        <div style="font-weight:bolder"  id="person_district"><?php echo !empty($person) ? $person->village : '' ?></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -93,19 +101,18 @@
         <div class="card-body">
             <div id="person_has_fingerprint" class="row mb-2 d-none">
                 <div class="col-12">
-                    <h4 class="text-success">This person already has Fingerprint data</h4>
+                    <h4 class="text-success"><?php echo !empty($person) ? $person->name : '' ?> telah melakukan Fingerprint</h4>
                 </div>
             </div>
             <h5 class="card-title">Fingerprint (<span class="fp-device-status" class="">?</span>)</h5>
             <div class="row mb-2">
-                <div class="col-4 text-center">
+                <div class="col-12 text-center">
                     <!-- <img src="" style="width: 400px; height: 300px"/> -->
                     <span class="icon" style="background-image: url('./res/icons/icons8-fingerprint-50.png')" title="not_enrolled"></span>
                 </div>
-                <div class="col-8">
-                    <!-- <button type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#modalFingerprint" onclick="initTakeFingerprints()">Take Fingerprints</button> -->
+                <!-- <div class="col-8">
                     <button type="button" class="btn btn-primary btn-block" onclick="openModalTakeFingerprint()">Take Fingerprints</button>
-                </div>
+                </div> -->
             </div>
             <div class="row">
                 <div class="col-12">
@@ -151,7 +158,7 @@
                                 <video id="webcam" autoplay playsinline style="width: 100%"></video>
                                 <canvas id="webcam_canvas" class="d-none" style="width: 100%"></canvas>
                             </div>
-                            <img id="take_photo_captured" src="" style="max-width: 100%"/>
+                            <img id="take_photo_captured" src="" style="max-width: 100%" />
                         </div>
                     </div>
                     <div class="row mx-3 mt-2">
