@@ -1,7 +1,10 @@
 <?php
 namespace biometric\src\core;
 
+use biometric\src\core\models\EnvFileModel;
+
 require_once(dirname(__FILE__)."/helpers/helpers.php");
+require_once(dirname(__FILE__)."/models/EnvFileModel.php");
 
 date_default_timezone_set("Asia/Jakarta");
 
@@ -9,7 +12,9 @@ class Fingerprint {
     private $fp_service_host;
 
     function __construct(){
-        $this->fp_service_host = getenv('FP_CLIENT_SERVICE_HOST');
+        // $this->fp_service_host = getenv('FP_CLIENT_SERVICE_HOST');
+        $env = new EnvFileModel();
+        $this->fp_service_host = $env->get('FP_CLIENT_SERVICE_HOST');
     }
 
     /**
