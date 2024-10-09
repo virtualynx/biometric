@@ -48,9 +48,16 @@ if($photoType == PhotoModel::PHOTO_TYPE_BIOMETRIC){
 }else if($photoType == PhotoModel::PHOTO_TYPE_DOCUMENTATION){
     $targetPath = $targetPath.'/photos';
 }else{
-    http_response_code(400);
-    echo 'Valid "photo_type" is either "'.PhotoModel::PHOTO_TYPE_BIOMETRIC.'" or "'.PhotoModel::PHOTO_TYPE_DOCUMENTATION.'"';
-    exit;
+    $targetPath = $targetPath.'/photos';
+}
+// else{
+//     http_response_code(400);
+//     echo 'Valid "photo_type" is either "'.PhotoModel::PHOTO_TYPE_BIOMETRIC.'" or "'.PhotoModel::PHOTO_TYPE_DOCUMENTATION.'"';
+//     exit;
+// }
+
+if(!empty($_POST['filename'])){
+    $filename = $_POST['filename'];
 }
 
 $files = null;
