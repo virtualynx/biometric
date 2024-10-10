@@ -949,7 +949,7 @@ $env = new EnvFileModel();
             $('#verify_photo').attr('src', person.photo);
         }else{
             $.ajax({
-                type: "POST",
+                type: "GET",
                 url: "./api/person/download_photo.php",
                 data: {
                     nik: person.nik,
