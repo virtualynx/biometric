@@ -803,25 +803,22 @@ $env = new EnvFileModel();
         $('#person_address').html(person.address);
         $('#person_district').html(person.village);
 
-        fetchProfilePhoto(person, (res) => {
-        if (res) {
-            $('#person_photo').attr('src', res);
+        if(person.photo){
+            $('#person_photo').attr('src', person.photo);
+        }else{
+            // fetchProfilePhoto(person, (res) => {
+            //     if (res) {
+            //         $('#person_photo').attr('src', res);
+            //     }
+            //     renderCardRowTakePhoto();
+            // });
+            renderCardRowTakePhoto();
         }
-        renderCardRowTakePhoto();
 
         $('#person_has_fingerprint').addClass('d-none');
-        if(person?.biometric_status?.fingerprint == 'completed'){
-            $('#person_has_fingerprint').removeClass('d-none');
-            $('#person_has_fingerprint').find('span').html(person.name);
-        }
-    });
-
         if (person.biometric_status.fingerprint == 'completed') {
             $('#person_has_fingerprint').removeClass('d-none');
-        } else {
-            if (!($('#person_has_fingerprint').hasClass('d-none'))) {
-                $('#person_has_fingerprint').addClass('d-none');
-            }
+            $('#person_has_fingerprint').find('span').html(person.name);
         }
 
         renderCardRowRegisterButtons();
@@ -956,11 +953,14 @@ $env = new EnvFileModel();
     function setVerifyProfile(person) {
         // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
         $('#verify_photo').attr('src', noPhotoIcon);
-        fetchProfilePhoto(person, (res) => {
-            if (res) {
-                $('#verify_photo').attr('src', res);
-            }
-        });
+        // fetchProfilePhoto(person, (res) => {
+        //     if (res) {
+        //         $('#verify_photo').attr('src', res);
+        //     }
+        // });
+        if(person.photo){
+            $('#verify_photo').attr('src', person.photo);
+        }
         $('#verify_nik').html(person.nik);
         $('#verify_name').html(person.name);
         $('#verify_address').html(person.address);
@@ -1069,8 +1069,6 @@ $env = new EnvFileModel();
                 success: successCallback,
                 error: xhrErrorCallback
             });
-        } else if(person.photo) {
-            $('#verify_photo').attr('src', person.photo);
         } else {
             renderCardRowTakePhoto();
         }
