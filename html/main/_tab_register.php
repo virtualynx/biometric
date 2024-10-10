@@ -101,7 +101,7 @@
         <div class="card-body">
             <div id="person_has_fingerprint" class="row mb-2 d-none">
                 <div class="col-12">
-                    <h4 class="text-success"><?php echo !empty($person) ? $person->name : '' ?> telah melakukan Fingerprint</h4>
+                    <h4 class="text-success"><span><?php echo !empty($person) ? $person->name : '' ?></span> telah melakukan Fingerprint</h4>
                 </div>
             </div>
             <h5 class="card-title">Fingerprint (<span class="fp-device-status" class="">?</span>)</h5>

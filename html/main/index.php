@@ -646,12 +646,13 @@ $env = new EnvFileModel();
             success: (res) => {
                 stopCapture();
                 if (res.status == 'success') {
-                    $('#modalFingerprint').modal('hide');
                     $('#person_has_fingerprint').addClass('d-none');
                     alert("Fingerprint registration success");
+                    pullPersonByNik(nik);
                 } else {
                     alert(`Failed: ${res.status}`);
                 }
+                $('#modalFingerprint').modal('hide');
             },
             error: xhrErrorCallback
         });
@@ -808,6 +809,12 @@ $env = new EnvFileModel();
             $('#person_photo').attr('src', res);
         }
         renderCardRowTakePhoto();
+
+        $('#person_has_fingerprint').addClass('d-none');
+        if(person?.biometric_status?.fingerprint == 'completed'){
+            $('#person_has_fingerprint').removeClass('d-none');
+            $('#person_has_fingerprint').find('span').html(person.name);
+        }
     });
 
         if (person.biometric_status.fingerprint == 'completed') {
