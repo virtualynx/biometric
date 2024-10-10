@@ -956,7 +956,7 @@ $env = new EnvFileModel();
                     filename: `${person.nik}.jpeg`,
                     is_base64: "true"
                 },
-                dataType: "text/plain",
+                dataType: "text",
                 success: (res) => {
                     if (res) {
                         $('#verify_photo').attr('src', res);
