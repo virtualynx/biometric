@@ -215,32 +215,51 @@ class PersonModel extends Database {
             return 'Belum melakukan rekam fingerprint';
         }
 
+        //auto-generate REG, DOC-VERIFY
+        try{
+            $res = $this->execute("
+                insert into trx_subject_status(
+                    nik,
+                    status_id,
+                    is_done
+                )
+                select 
+                    '$nik',
+                    id,
+                    1
+                from 
+                    master_status ms
+                where
+                    disabled = 0
+                    and id in ('REG', 'DOC-VERIFY')
+                order by
+                    `order`
+            ");
+        }catch(\Exception $e){
+            if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+                throw $e;
+            }
+        }
+        // auto-generate AGR-DISC
+        try{
+            $res = $this->execute("
+                insert into trx_subject_status(
+                    nik,
+                    status_id,
+                    is_done
+                )
+                select 
+                    '$nik',
+                    'AGR-DISC',
+                    0
+            ");
+        }catch(\Exception $e){
+            if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+                throw $e;
+            }
+        }
+
         $latestStatus = null;
-        // $statusArr = $this->query("
-        //     select 
-        //         id,
-        //         name,
-        //         `order`,
-        //         (
-        //             case when (
-        //                 exists (select 1 from trx_subject_status where nik = '$nik' and status_id = ms.id)
-        //             ) then
-        //                 (select is_done from trx_subject_status where nik = '$nik' and status_id = ms.id)
-        //             else
-        //                 0
-        //             end
-        //         ) as status
-        //     from 
-        //         master_status ms
-        //     order by
-        //         `order`
-        // ");
-        // foreach($statusArr as $row){
-        //     if(intval($row->status) == 0){
-        //         $latestStatus = $row;
-        //         break;
-        //     }
-        // }
         $trxSubjectStatus = $this->query("
             select 
                 tss.*,
