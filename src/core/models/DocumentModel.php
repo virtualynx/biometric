@@ -18,6 +18,7 @@ class DocumentModel extends Database {
                 doc.nik,
                 doc.filename,
                 doc.extension,
+                doc.`type` as `type_id`,
                 mdt.name as `type`,
                 doc.description,
                 doc.file_path,

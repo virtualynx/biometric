@@ -29,6 +29,7 @@ class PersonModel extends Database {
         $persons = json_decode(json_encode($persons), true);
         foreach($persons as &$row){
             $row['biometric_status'] = $this->getBiometricStatus($row['nik']);
+            $row['status'] = $this->getOverallStatus($row['nik']);
 
             unset($row);
         }
@@ -190,10 +191,10 @@ class PersonModel extends Database {
         $hasKk = false;
         $docs = $this->documentModel->get($nik);
         foreach($docs as $row){
-            if($row->type == 'KTP' || $row->type == 'SIM'){
+            if($row->type_id == 'KTP' || $row->type == 'SIM'){
                 $hasKtp = true;
             }
-            if($row->type == 'KK'){
+            if($row->type_id == 'KK'){
                 $hasKk = true;
             }
         }
@@ -221,7 +222,7 @@ class PersonModel extends Database {
                     case when (
                         exists (select 1 from trx_subject_status where nik = '$nik' and status_id = ms.id)
                     ) then
-                        1
+                        (select is_done from trx_subject_status where nik = '$nik' and status_id = ms.id)
                     else
                         0
                     end
@@ -234,7 +235,7 @@ class PersonModel extends Database {
         $latestStatus = null;
         foreach($trx_status as $row){
             if(intval($row->status) == 0){
-                $latestStatus = $row;
+                $latestStatus = $row->name;
                 break;
             }
         }
