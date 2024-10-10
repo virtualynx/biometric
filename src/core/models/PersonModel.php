@@ -73,7 +73,7 @@ class PersonModel extends Database {
                 name,
                 (
                     case when (
-                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = ms.id)
+                        exists (select 1 from trx_subject_status where nik = '$nik' and act_id = ms.id)
                     ) then
                         1
                     else
@@ -106,7 +106,7 @@ class PersonModel extends Database {
                 name,
                 (
                     case when (
-                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = mdt.id)
+                        exists (select 1 from trx_subject_status where nik = '$nik' and act_id = mdt.id)
                     ) then
                         1
                     else

@@ -18,7 +18,7 @@ $db = new Database();
 try{
     $existings = $db->query("
         select *
-        from trx_subject_act
+        from trx_subject_status
         where
             nik = '$nik'
             and act_id = '$act_id'
@@ -30,14 +30,14 @@ try{
     if($value == true){
         if(empty($existing)){
             $res = $db->execute("
-                insert into trx_subject_act(nik, act_id)
+                insert into trx_subject_status(nik, act_id)
                 values('$nik', '$act_id')
             ");
         }
     }else{
         if(!empty($existing)){
             $res = $db->execute("
-                delete from trx_subject_act
+                delete from trx_subject_status
                 where
                     nik = '$nik'
                     and act_id = '$act_id'
