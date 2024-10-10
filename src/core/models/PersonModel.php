@@ -3,6 +3,7 @@ namespace biometric\src\core\models;
 
 use biometric\src\core\Database;
 use biometric\src\core\Fingerprint;
+use biometric\src\core\utils\Helper;
 use stdClass;
 
 require_once(dirname(__FILE__)."/../Database.php");
@@ -208,41 +209,88 @@ class PersonModel extends Database {
 
         $biometricStatus = $this->getBiometricStatus($nik);
         if($biometricStatus->photo != 'completed'){
-            return 'Belum melakukan Foto biometrik';
+            return 'Belum melakukan Foto Setengah badan';
         }
         if($biometricStatus->fingerprint != 'completed'){
             return 'Belum melakukan rekam Fingerprint';
         }
 
-        $trx_status = $this->query("
-            select 
-                id,
-                name,
-                (
-                    case when (
-                        exists (select 1 from trx_subject_status where nik = '$nik' and status_id = ms.id)
-                    ) then
-                        (select is_done from trx_subject_status where nik = '$nik' and status_id = ms.id)
-                    else
-                        0
-                    end
-                ) as status
-            from 
-                master_status ms
-            order by
-                `order`
-        ");
         $latestStatus = null;
-        foreach($trx_status as $row){
-            if(intval($row->status) == 0){
-                $latestStatus = $row->name;
-                break;
-            }
-        }
-        if(empty($latestStatus)){
-            $latestStatus = 'Done';
+        // $statusArr = $this->query("
+        //     select 
+        //         id,
+        //         name,
+        //         `order`,
+        //         (
+        //             case when (
+        //                 exists (select 1 from trx_subject_status where nik = '$nik' and status_id = ms.id)
+        //             ) then
+        //                 (select is_done from trx_subject_status where nik = '$nik' and status_id = ms.id)
+        //             else
+        //                 0
+        //             end
+        //         ) as status
+        //     from 
+        //         master_status ms
+        //     order by
+        //         `order`
+        // ");
+        // foreach($statusArr as $row){
+        //     if(intval($row->status) == 0){
+        //         $latestStatus = $row;
+        //         break;
+        //     }
+        // }
+        $trxSubjectStatus = $this->query("
+            select 
+                tss.*,
+                ms.name,
+                ms.`order`
+            from 
+                trx_subject_status tss
+                join master_status ms on tss.status_id = ms.id
+            where
+                ms.disabled = 0
+                and tss.nik = '$nik'
+            order by
+                ms.`order` desc
+        ");
+        if(!empty($trxSubjectStatus)){
+            $latestStatus = $trxSubjectStatus[0];
         }
 
-        return $latestStatus;
+        //auto-generated status log
+        if(!empty($latestStatus)){
+            try{
+                $res = $this->execute("
+                    insert into trx_subject_status(
+                        nik,
+                        status_id,
+                        is_done
+                    )
+                    select 
+                        '$nik',
+                        id,
+                        1
+                    from 
+                        master_status ms
+                    where
+                        `order` < $latestStatus->order
+                    order by
+                        `order`
+                ");
+            }catch(\Exception $e){
+                if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+                    throw $e;
+                }
+            }
+        }
+
+        if(empty($latestStatus)){
+            $latestStatus = 'Done';
+            return 'Done';
+        }
+
+        return $latestStatus->name;
     }
 }
