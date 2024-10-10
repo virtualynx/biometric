@@ -466,7 +466,6 @@ $env = new EnvFileModel();
                         success: (res) => {
                             localStorage.setItem("is_from_queue", false);
                             setRegisterProfile(res);
-                            // fetchProfilePhoto(res);
                         },
                         error: (xhr, status, error) => {
                             if (xhr.responseText == 'Data not found') {
@@ -806,12 +805,6 @@ $env = new EnvFileModel();
         if(person.photo){
             $('#person_photo').attr('src', person.photo);
         }else{
-            // fetchProfilePhoto(person, (res) => {
-            //     if (res) {
-            //         $('#person_photo').attr('src', res);
-            //     }
-            //     renderCardRowTakePhoto();
-            // });
             renderCardRowTakePhoto();
         }
 
@@ -951,15 +944,30 @@ $env = new EnvFileModel();
     }
 
     function setVerifyProfile(person) {
-        // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
         $('#verify_photo').attr('src', noPhotoIcon);
-        // fetchProfilePhoto(person, (res) => {
-        //     if (res) {
-        //         $('#verify_photo').attr('src', res);
-        //     }
-        // });
         if(person.photo){
             $('#verify_photo').attr('src', person.photo);
+        }else{
+            $.ajax({
+                type: "POST",
+                url: "./api/person/download_photo.php",
+                data: {
+                    nik: nik,
+                    filename: `${nik}.jpeg`,
+                    is_base64: "true"
+                },
+                dataType: "text/plain",
+                success: (res) => {
+                    if (res) {
+                        $('#verify_photo').attr('src', res);
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.log('xhr', xhr);
+                    console.log('status', status);
+                    console.log('error', error);
+                }
+            });
         }
         $('#verify_nik').html(person.nik);
         $('#verify_name').html(person.name);
@@ -1007,20 +1015,15 @@ $env = new EnvFileModel();
                 $('#verify_not_match').addClass('d-none');
 
                 if (res.person) {
-                    // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
-                    // fetchProfilePhoto(res.person, (res) => {
-                    //     if (res) {
-                    //         $('#verify_photo').attr('src', res);
-                    //     }
-                    // });
-                    $('#verify_photo').attr('src', noPhotoIcon);
-                    if(res.person.photo){
-                        $('#verify_photo').attr('src', res.person.photo);
-                    }
-                    $('#verify_nik').html(res.person.nik);
-                    $('#verify_name').html(res.person.name);
-                    $('#verify_address').html(res.person.address);
-                    $('#verify_district').html(res.person.village);
+                    // $('#verify_photo').attr('src', noPhotoIcon);
+                    // if(res.person.photo){
+                    //     $('#verify_photo').attr('src', res.person.photo);
+                    // }
+                    // $('#verify_nik').html(res.person.nik);
+                    // $('#verify_name').html(res.person.name);
+                    // $('#verify_address').html(res.person.address);
+                    // $('#verify_district').html(res.person.village);
+                    setVerifyProfile(res.person);
 
                     let labelToShown = '';
                     if (nik.length == 0) {
@@ -1056,26 +1059,6 @@ $env = new EnvFileModel();
                 }
             }
         });
-    }
-
-    function fetchProfilePhoto(person, successCallback) {
-        let profilePic = person.photos.find(a => a.type == 'biometric');
-        if (profilePic) {
-            $.ajax({
-                type: "GET",
-                url: "<?php echo $env->get('FILE_STORAGE_HOST') ?>/api/person/download_photo.php",
-                data: {
-                    nik: person.nik,
-                    filename: profilePic.filename,
-                    is_base64: true
-                },
-                dataType: "text",
-                success: successCallback,
-                error: xhrErrorCallback
-            });
-        } else {
-            renderCardRowTakePhoto();
-        }
     }
 </script>
 
