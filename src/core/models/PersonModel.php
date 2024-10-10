@@ -24,7 +24,7 @@ class PersonModel extends Database {
     }
 
     public function list(): array{
-        $persons = $this->query("select * from person");
+        $persons = $this->query("select * from person order by created_at desc");
 
         $persons = json_decode(json_encode($persons), true);
         foreach($persons as &$row){
@@ -73,7 +73,7 @@ class PersonModel extends Database {
                 name,
                 (
                     case when (
-                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = mact.id)
+                        exists (select 1 from trx_subject_act where nik = '$nik' and act_id = ms.id)
                     ) then
                         1
                     else
@@ -81,7 +81,7 @@ class PersonModel extends Database {
                     end
                 ) as status
             from 
-                master_act mact
+                master_status ms
             order by
                 `order`
         ");
@@ -241,5 +241,9 @@ class PersonModel extends Database {
         }
 
         return json_decode(json_encode($result));
+    }
+
+    public function getOverallStatus(){
+
     }
 }

@@ -8,7 +8,7 @@ require_once(dirname(__FILE__)."/../../src/core/Database.php");
 $db = new Database();
 
 try{
-    $res = $db->query("select * from master_act order by `order`");
+    $res = $db->query("select * from master_status order by `order`");
     echo json_encode($res);
 }catch(\Exception $e){
     echo $e->getMessage();
