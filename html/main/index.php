@@ -781,9 +781,10 @@ $env = new EnvFileModel();
                 // processData: false,
                 dataType: "text",
                 success: (res) => {
-                    console.log(res);
+                    // console.log(res);
                     if (res == 'success') {
                         $('#person_photo').attr('src', noPhotoIcon);
+                        renderCardRowTakePhoto();
                     }
                 },
                 error: xhrErrorCallback
@@ -797,7 +798,6 @@ $env = new EnvFileModel();
         // $('#person_photo').attr('src', person.photo!=null? person.photo: noPhotoIcon);
         $('#person_photo').attr('src', noPhotoIcon);
         $('#person_name').html(person.name);
-        $('#person_name_photo').html(person.name);
         $('#person_nik').html(person.nik);
         $('#person_address').html(person.address);
         $('#person_district').html(person.village);
@@ -821,7 +821,6 @@ $env = new EnvFileModel();
         $('#person_photo').attr('src', noPhotoIcon);
         $('#person_nik').html('');
         $('#person_name').html('');
-        $('#person_name_photo').html('');
         $('#person_address').html('');
         $('#person_district').html('');
 

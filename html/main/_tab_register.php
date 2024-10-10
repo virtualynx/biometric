@@ -28,15 +28,21 @@
             </div>
 
             <div id="card_row_register_another" class="row">
-                <div class="col-2 text-center">
-                    <button
-                        type="button"
-                        id="button_pull_from_queue"
-                        class="btn btn-primary btn-block"
-                        onclick="clearRegisterProfile(); reEnqueue(); $('#datalist_manual_input').val('');">Daftar lainnya</button>
-                </div>
+                <?php
+                    if(empty($_GET['nik'])){
+                ?>
+                        <div class="col-2 text-center">
+                            <button
+                                type="button"
+                                id="button_pull_from_queue"
+                                class="btn btn-primary btn-block"
+                                onclick="clearRegisterProfile(); reEnqueue(); $('#datalist_manual_input').val('');">Daftar lainnya</button>
+                        </div>
+                <?php
+                    }
+                ?>
                 <div class="col-6 px-5" id="card_row_take_photo" class="row">
-                    <button type="button" class="btn btn-primary btn-block" onclick="openModalTakePhoto()">Ambil Foto <span id="person_name_photo" style="color: white; font-weight:bold"></span> <i class="fas fa-camera" style="margin-left: 5px;"></i> </button>
+                    <button type="button" class="btn btn-primary btn-block" onclick="openModalTakePhoto()">Ambil Foto<i class="fas fa-camera" style="margin-left: 5px;"></i> </button>
                 </div>
                 <div class="col-4">
                     <button type="button" class="btn btn-primary btn-block" onclick="openModalTakeFingerprint()">Ambil Fingerprint <i class="fas fa-fingerprint" style="margin-left: 5px;"></i></button>
