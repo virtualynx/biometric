@@ -32,10 +32,11 @@ try{
 
         $photos []= $row;
     }
+    $person['photos'] = $photos;
 
     if($with_photo){
         $bioPhoto = null;
-        foreach($photos as $row){
+        foreach($photosRaw as $row){
             if($row['type'] == 'biometric'){
                 $bioPhoto = $row;
                 break;
