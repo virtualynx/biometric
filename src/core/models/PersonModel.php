@@ -64,64 +64,6 @@ class PersonModel extends Database {
         // }
         // $person['photo'] = $bioPhoto;
 
-        /**
-         * GET STATUS
-         */
-        $acts = $this->query("
-            select 
-                id,
-                name,
-                (
-                    case when (
-                        exists (select 1 from trx_subject_status where nik = '$nik' and act_id = ms.id)
-                    ) then
-                        1
-                    else
-                        0
-                    end
-                ) as status
-            from 
-                master_status ms
-            order by
-                `order`
-        ");
-        $latestStatus = null;
-        foreach($acts as $row){
-            if(intval($row->status) == 0){
-                $latestStatus = $row;
-                break;
-            }
-        }
-        if(empty($latestStatus)){
-            $latestStatus = 'Done';
-        }
-        $person['status'] = $latestStatus->name;
-
-        /**
-         * DOCUMENT VERIFICATION STATUS
-         */
-        $docs = $this->query("
-            select 
-                id,
-                name,
-                (
-                    case when (
-                        exists (select 1 from trx_subject_status where nik = '$nik' and act_id = mdt.id)
-                    ) then
-                        1
-                    else
-                        0
-                    end
-                ) as status
-            from 
-                master_doc_type mdt
-            order by
-                `order`
-        ");
-        $person['doc_verification'] = [
-
-        ];
-
         return json_decode(json_encode($person));
     }
 
@@ -243,7 +185,63 @@ class PersonModel extends Database {
         return json_decode(json_encode($result));
     }
 
-    public function getOverallStatus(){
+    public function getOverallStatus($nik){
+        $hasKtp = false;
+        $hasKk = false;
+        $docs = $this->documentModel->get($nik);
+        foreach($docs as $row){
+            if($row->type == 'KTP' || $row->type == 'SIM'){
+                $hasKtp = true;
+            }
+            if($row->type == 'KK'){
+                $hasKk = true;
+            }
+        }
 
+        if(!$hasKtp){
+            return 'Dokumen KTP belum lengkap';
+        }
+        if(!$hasKk){
+            return 'Dokumen KK belum lengkap';
+        }
+
+        $biometricStatus = $this->getBiometricStatus($nik);
+        if($biometricStatus->photo != 'completed'){
+            return 'Belum melakukan Foto biometrik';
+        }
+        if($biometricStatus->fingerprint != 'completed'){
+            return 'Belum melakukan rekam Fingerprint';
+        }
+
+        $trx_status = $this->query("
+            select 
+                id,
+                name,
+                (
+                    case when (
+                        exists (select 1 from trx_subject_status where nik = '$nik' and status_id = ms.id)
+                    ) then
+                        1
+                    else
+                        0
+                    end
+                ) as status
+            from 
+                master_status ms
+            order by
+                `order`
+        ");
+        $latestStatus = null;
+        foreach($trx_status as $row){
+            if(intval($row->status) == 0){
+                $latestStatus = $row;
+                break;
+            }
+        }
+        if(empty($latestStatus)){
+            $latestStatus = 'Done';
+        }
+
+        return $latestStatus;
     }
 }
