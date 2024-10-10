@@ -952,8 +952,8 @@ $env = new EnvFileModel();
                 type: "POST",
                 url: "./api/person/download_photo.php",
                 data: {
-                    nik: nik,
-                    filename: `${nik}.jpeg`,
+                    nik: person.nik,
+                    filename: `${person.nik}.jpeg`,
                     is_base64: "true"
                 },
                 dataType: "text/plain",
