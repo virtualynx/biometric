@@ -460,11 +460,10 @@ $env = new EnvFileModel();
                         url: "./api/person/getinfo.php",
                         data: {
                             nik: nik,
-                            without_photo: true
+                            without_photo: false
                         },
                         dataType: "json",
                         success: (res) => {
-                            // console.log('person/getinfo', res);
                             localStorage.setItem("is_from_queue", false);
                             setRegisterProfile(res);
                             fetchProfilePhoto(res);
@@ -930,7 +929,7 @@ $env = new EnvFileModel();
             url: "./api/person/getinfo.php",
             data: {
                 nik: nik,
-                without_photo: true
+                without_photo: false
             },
             dataType: "json",
             success: (res) => {
