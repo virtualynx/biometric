@@ -755,6 +755,7 @@ $env = new EnvFileModel();
                 pullPersonByNik(nik);
                 $('#modalPhoto').modal('hide');
                 alert('Biometric photo success');
+                renderCardRowTakePhoto();
             },
             error: xhrErrorCallback
         });
