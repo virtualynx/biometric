@@ -1069,6 +1069,8 @@ $env = new EnvFileModel();
                 success: successCallback,
                 error: xhrErrorCallback
             });
+        } else if(person.photo) {
+            $('#verify_photo').attr('src', person.photo);
         } else {
             renderCardRowTakePhoto();
         }
