@@ -209,10 +209,10 @@ class PersonModel extends Database {
 
         $biometricStatus = $this->getBiometricStatus($nik);
         if($biometricStatus->photo != 'completed'){
-            return 'Belum melakukan Foto Setengah badan';
+            return 'Belum melakukan foto setengah badan';
         }
         if($biometricStatus->fingerprint != 'completed'){
-            return 'Belum melakukan rekam Fingerprint';
+            return 'Belum melakukan rekam fingerprint';
         }
 
         $latestStatus = null;
