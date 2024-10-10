@@ -466,7 +466,7 @@ $env = new EnvFileModel();
                         success: (res) => {
                             localStorage.setItem("is_from_queue", false);
                             setRegisterProfile(res);
-                            fetchProfilePhoto(res);
+                            // fetchProfilePhoto(res);
                         },
                         error: (xhr, status, error) => {
                             if (xhr.responseText == 'Data not found') {
@@ -1008,11 +1008,15 @@ $env = new EnvFileModel();
 
                 if (res.person) {
                     // $('#verify_photo').attr('src', res.person.photo!=null? res.person.photo: noPhotoIcon);
-                    fetchProfilePhoto(res.person, (res) => {
-                        if (res) {
-                            $('#verify_photo').attr('src', res);
-                        }
-                    });
+                    // fetchProfilePhoto(res.person, (res) => {
+                    //     if (res) {
+                    //         $('#verify_photo').attr('src', res);
+                    //     }
+                    // });
+                    $('#verify_photo').attr('src', noPhotoIcon);
+                    if(res.person.photo){
+                        $('#verify_photo').attr('src', res.person.photo);
+                    }
                     $('#verify_nik').html(res.person.nik);
                     $('#verify_name').html(res.person.name);
                     $('#verify_address').html(res.person.address);
