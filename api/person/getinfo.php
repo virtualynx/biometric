@@ -23,7 +23,15 @@ try{
     $person = $pm->get($_POST['nik']);
 
     $person = json_decode(json_encode($person), true);
-    $photos = $person['photos'];
+    $photosRaw = $person['photos'];
+
+    //removes biometric photo from photos
+    $photos = [];
+    foreach($photosRaw as $row){
+        if($row['type'] == 'biometric')continue;
+
+        $photos []= $row;
+    }
 
     if($with_photo){
         $bioPhoto = null;
