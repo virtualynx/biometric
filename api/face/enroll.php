@@ -10,6 +10,7 @@ $requestBody = file_get_contents('php://input');
 $json = json_decode($requestBody);
 
 $fm = new FaceModel();
-$fm->add($json->person_id, $json->id_type, $json->encoding);
+$encoding = json_encode($json->encoding);
+$fm->add($json->person_id, $json->id_type, $encoding);
 
 echo json_encode(['status' => 'success']);

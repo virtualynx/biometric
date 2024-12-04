@@ -40,7 +40,18 @@ class FaceModel extends Database {
             $where_clause
         ");
 
-        return !empty($faces)? $faces[0]: null;
+        $result = [];
+        if(!empty($faces)){
+            foreach($faces as $row){
+                $result []= [
+                    'person_id' => $row->person_id,
+                    'id_type' => $row->id_type,
+                    'encoding' => json_decode($row->encoding)
+                ];
+            }
+        }
+
+        return $result;
     }
     
     public function add(
