@@ -59,19 +59,29 @@ class FaceModel extends Database {
         string $id_type, 
         string $encoding
     ){
-        
-        $res = $this->execute("
-            insert into face(
-                person_id,
-                id_type,
-                encoding
-            )
-            values(
-                '$person_id',
-                '$id_type',
-                '$encoding'
-            )
+        $existings = $this->query("
+            select * 
+            from face 
+            where
+                person_id = '$person_id'
+                and id_type = '$id_type'
         ");
+
+        $res = false;
+        if(empty($existings)){
+            $res = $this->execute("
+                insert into face(
+                    person_id,
+                    id_type,
+                    encoding
+                )
+                values(
+                    '$person_id',
+                    '$id_type',
+                    '$encoding'
+                )
+            ");
+        }
 
         return $res;
     }
