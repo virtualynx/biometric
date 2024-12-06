@@ -54,7 +54,7 @@ class FaceModel extends Database {
         return $result;
     }
     
-    public function add(
+    public function enroll(
         string $person_id, 
         string $id_type, 
         string $encoding
@@ -81,6 +81,9 @@ class FaceModel extends Database {
                     '$encoding'
                 )
             ");
+        }else{
+            $existing_id = $existings[0]->face_id;
+            $res = $this->execute("update face set encoding = '$encoding' where face_id = $existing_id");
         }
 
         return $res;

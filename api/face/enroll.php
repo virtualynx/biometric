@@ -11,6 +11,6 @@ $json = json_decode($requestBody);
 
 $fm = new FaceModel();
 $encoding = json_encode($json->encoding);
-$fm->add($json->person_id, $json->id_type, $encoding);
+$fm->enroll($json->person_id, $json->id_type, $encoding);
 
 echo json_encode(['status' => 'success']);
