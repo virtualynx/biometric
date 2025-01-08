@@ -29,10 +29,11 @@ if(empty($file)){
 }
 
 $fu = new FileUploadModel();
-$is_base64 = filter_var($_GET['is_base64'], FILTER_VALIDATE_BOOLEAN);
-$isBase64String = $is_base64 && in_array($file->extension, ['gif', 'png', 'jpg', 'jpeg']);
+// $is_base64 = filter_var($_GET['is_base64'], FILTER_VALIDATE_BOOLEAN);
+// $isBase64String = $is_base64 && in_array($file->extension, ['gif', 'png', 'jpg', 'jpeg']);
 
-if($isBase64String){
+// if($isBase64String){
+if(!empty($_GET['is_base64']) && filter_var($_GET['is_base64'], FILTER_VALIDATE_BOOLEAN) == true){
     echo $fu->getBase64String($_GET['filename'], $file->file_path);
 }else{
     $fu->downloadFile($_GET['filename'], $file->file_path);
