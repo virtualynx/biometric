@@ -7,5 +7,16 @@ use biometric\src\core\models\PersonModel;
 $pm = new PersonModel();
 
 $persons = $pm->list();
+$persons_filtered = [];
 
-echo json_encode($persons);
+if(!empty($_POST['sk_number'])){
+    foreach($persons as $row){
+        if($row->sk_number == $_POST['sk_number']){
+            $persons_filtered []= $row;
+        }
+    }
+}else{
+    $persons_filtered = $persons;
+}
+
+echo json_encode($persons_filtered);
