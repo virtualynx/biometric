@@ -43,12 +43,26 @@ class FileUploadModel {
             mkdir($targetPath, 0777, true);
         }
 
+        $base64decoded = null;
         if($is_base64){
             if(empty($filename)){
                 throw new \Exception('Filename cannot be empty for base64-based file transfer');
             }
-            
-            $extension = explode('/', mime_content_type($files))[1];
+
+            $type = '';
+            list($type, $data) = explode(';', $files);
+            list(, $data)      = explode(',', $files);
+            $base64decoded = base64_decode($data);
+
+            $extension = '';
+            list(, $type) = explode(':', $type);
+            list(, $extension) = explode('/', $type);
+
+            $filenamearr = explode('.', $filename);
+            if($filenamearr[count($filenamearr)-1] != $extension){ //correcting extension
+                $filenamearr[count($filenamearr)-1] = $extension;
+                $filename = implode('.', $filenamearr);
+            }
         }else{
             if(empty($files)){
                 throw new \Exception('Blob file cannot be empty for base64-based file transfer');
@@ -74,9 +88,10 @@ class FileUploadModel {
                 $status = 'File already exists';
             }
         }
-        
+
         if($is_base64){
-            file_put_contents($filePath, file_get_contents($files));
+            // file_put_contents($filePath, file_get_contents($files));
+            file_put_contents($filePath, $base64decoded);
         }else{
             move_uploaded_file($files["tmp_name"], $filePath);
         }
