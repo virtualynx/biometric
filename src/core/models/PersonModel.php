@@ -38,8 +38,12 @@ class PersonModel extends Database {
         return json_decode(json_encode($persons));
     }
 
-    public function get(string $nik): stdClass{
-        $persons = $this->query("select * from person where nik = '$nik'");
+    public function get(string $nik, string $sk_number = null): stdClass{
+        $where_sk = "";
+        if(!empty($sk_number)){
+            $where_sk = " and sk_number = '$sk_number'";
+        }
+        $persons = $this->query("select * from person where nik = '$nik' $where_sk");
 
         if(count($persons) == 0){
             throw new \Exception('Data not found');
@@ -140,6 +144,26 @@ class PersonModel extends Database {
                 updated_at = current_timestamp()
             where
                 nik = '$person->nik'
+        ");
+
+        return $res;
+    }
+
+    public function update_mobile(stdClass $person, string $sk_number): bool{
+        $res = $this->execute("
+            update person
+            set
+                name = '$person->name',
+                address = '$person->address',
+                familycard_no = '$person->familycard_no',
+                village = '$person->village',
+                phone = '$person->phone',
+                luas_tanah = '$person->luas_tanah',
+                luas_bangunan = '$person->luas_bangunan',
+                updated_at = current_timestamp()
+            where
+                nik = '$person->nik'
+                and sk_number = '$sk_number'
         ");
 
         return $res;

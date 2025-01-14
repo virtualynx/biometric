@@ -25,11 +25,7 @@ if(empty($_POST['nik']) || empty($_POST['sk_number'])){
 $pm = new PersonModel();
 
 try{
-    $person = $pm->get($_POST['nik']);
-
-    if($person->sk_number !== $_POST['sk_number']){
-        throw new Exception('Data not found');
-    }
+    $person = $pm->get($_POST['nik'], $_POST['sk_number']);
 }catch(\Exception $e){
     if($e->getMessage() != 'Data not found'){
         http_response_code(500);
@@ -86,6 +82,6 @@ if(!empty($_POST['face_encoding'])){
     $fm->enroll($_POST['nik'], 'NIK', $encoding);
 }
 
-$pm->update($person);
+$pm->update_mobile($person, $_POST['sk_number']);
 
 echo json_encode(['status' => 'success']);
