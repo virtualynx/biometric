@@ -11,17 +11,20 @@ require_once(dirname(__FILE__)."/PhotoModel.php");
 require_once(dirname(__FILE__)."/DocumentModel.php");
 require_once(dirname(__FILE__)."/FileUploadModel.php");
 require_once(dirname(__FILE__)."/../Fingerprint.php");
+require_once(dirname(__FILE__)."/FaceModel.php");
 
 class PersonModel extends Database {
     private $photoModel;
     private $documentModel;
     private $fileUploadModel;
+    private $faceModel;
 
     public function __construct(){
         parent::__construct();
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
         $this->fileUploadModel = new FileUploadModel();
+        $this->faceModel = new FaceModel();
     }
 
     public function list(): array{
@@ -178,7 +181,8 @@ class PersonModel extends Database {
     public function getBiometricStatus(string $nik): stdClass{
         $result = [
             'photo' => 'unregistered',
-            'fingerprint' => 'unregistered'
+            'fingerprint' => 'unregistered',
+            'face' => 'unregistered'
         ];
 
         $photos = $this->photoModel->get($nik);
@@ -206,6 +210,11 @@ class PersonModel extends Database {
             $result['fingerprint'] = 'index finger not registered';
         }else if(!$hasThumb){
             $result['fingerprint'] = 'thumb finger not registered';
+        }
+
+        $faces = $this->faceModel->list([$nik]);
+        if(count($faces) > 0){
+            $result['face'] = 'completed';
         }
 
         return json_decode(json_encode($result));

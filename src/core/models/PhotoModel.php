@@ -40,24 +40,54 @@ class PhotoModel extends Database {
         string $description = null,
         string $extension = null
     ){
-        $res = $this->execute("
-            insert into photo(
-                nik,
-                filename,
-                photo_path,
-                type,
-                description
-                ".(!empty($extension)? ",extension": "")."
-            )
-            values(
-                '$nik',
-                '$filename',
-                '$savepath',
-                '$photoType',
-                '$description'
-                ".(!empty($extension)? ",'$extension'": "")."
-            )
-        ");
+        $existingBiometric = null;
+        if($photoType == self::PHOTO_TYPE_BIOMETRIC){
+            $rs = $this->query("
+                select * 
+                from photo 
+                where 
+                    nik = '$nik'
+                    and `type` = '$photoType'
+            ");
+
+            if(!empty($rs)){
+                $existingBiometric = $rs[0];
+            }
+        }
+
+        $res = false;
+        if($photoType == self::PHOTO_TYPE_BIOMETRIC && !empty($existingBiometric)){
+            $res = $this->execute("
+                update photo
+                set
+                    filename = '$filename',
+                    photo_path = '$savepath',
+                    description = '$description'
+                    ".(!empty($extension)? ",extension = '$extension'": "")."
+                where
+                    nik = '$nik'
+                    and type = '$photoType'
+            ");
+        }else{
+            $res = $this->execute("
+                insert into photo(
+                    nik,
+                    filename,
+                    photo_path,
+                    type,
+                    description
+                    ".(!empty($extension)? ",extension": "")."
+                )
+                values(
+                    '$nik',
+                    '$filename',
+                    '$savepath',
+                    '$photoType',
+                    '$description'
+                    ".(!empty($extension)? ",'$extension'": "")."
+                )
+            ");
+        }
 
         return $res;
     }
