@@ -1,7 +1,21 @@
 <div class="row mx-3 mb-3">
+
     <div class="col-12 card">
         <div class="card-body">
-            <h5 class="card-title">Verify Biometrical Data (<span class="fp-device-status" class="">?</span>)</h5>
+            <div class="row">
+                <div class="col-6">
+                    <button type="button" class="btn btn-primary btn-block" onclick="showPanelFinger()">Fingerprint</button>
+                </div>
+                <div class="col-6">
+                    <button type="button" class="btn btn-primary btn-block col-6" onclick="showPanelFace()">Face Recognition</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="panel-finger" class="col-12 card">
+        <div class="card-body">
+            <h5 class="card-title">Verify Fingerprint Data (<span class="fp-device-status" class="">?</span>)</h5>
             
             <div class="row">
                 <div class="col-12">
@@ -40,6 +54,46 @@
         </div>
     </div>
 
+    <div id="panel-face" class="col-12 card d-none">
+        <div class="card-body">
+            <h5 class="card-title">Verify Face Data</h5>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="form-group">
+                        <input 
+                            class="form-control" 
+                            name="datalist_verify_input" 
+                            list="datalist_verify" 
+                            onfocus="this.value=''"
+                            onchange="fetchVerifyProfile()"
+                            placeholder="Search NIK / Name ..."
+                        >
+                        <datalist id="datalist_verify"></datalist>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div id="facecam_panel" style="max-width: 100%">
+                        <video id="facecam" autoplay playsinline style="width: 100%"></video>
+                        <canvas id="facecam_canvas" class="d-none" style="width: 100%"></canvas>
+                        <!-- <canvas id="facecam_canvas" style="width: 100%"></canvas> -->
+                    </div>
+                    
+                    <img id="facecam_captured" src="" style="max-width: 100%" />
+                </div>
+            </div>
+
+            <div class="row form-row mx-3 mt-3 justify-content-center">
+                <div class="col-12">
+                    <button class="btn btn-primary btn-block my-sec-bg my-text-button py-1" type="button" onclick="recognizeFace()">Recognize</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="col-12 card mt-3">
         <div class="card-body">
             <div class="row">
@@ -52,22 +106,22 @@
             
             <div id="verify_match" class="row d-none">
                 <div class="col-12 text-center">
-                    <h2 class="form-label text-success">Fingerprint data matched !!</h2>
+                    <h2 class="form-label text-success">Biometric data matched !!</h2>
                 </div>
             </div>
             <div id="verify_not_match" class="row d-none">
                 <div class="col-12 text-center">
-                    <h2 class="form-label text-danger">Fingerprint data not matched !!</h2>
+                    <h2 class="form-label text-danger">Biometric data not matched !!</h2>
                 </div>
             </div>
             <div id="verify_found_label" class="row d-none">
                 <div class="col-12 text-center">
-                    <h2 class="form-label text-success">Fingerprint data found !!</h2>
+                    <h2 class="form-label text-success">Data found !!</h2>
                 </div>
             </div>
             <div id="verify_not_found_label" class="row d-none">
                 <div class="col-12 text-center">
-                    <h2 class="form-label text-danger">Fingerprint data not found !!</h2>
+                    <h2 class="form-label text-danger">Data not found !!</h2>
                 </div>
             </div>
             <div class="row">

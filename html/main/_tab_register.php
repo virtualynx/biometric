@@ -7,7 +7,8 @@
                         type="button"
                         id="button_pull_from_queue"
                         class="btn btn-primary btn-block"
-                        onclick="pullFromQueue()">Pull from Queue</button>
+                        onclick="pullFromQueue()"
+                        disabled>Pull from Queue</button>
                 </div>
                 <div class="col-8">
                     <div class="form-group">

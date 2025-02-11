@@ -1,0 +1,1 @@
+https://medium.com/genai-io/face-api-js-a-way-to-build-face-recognition-system-in-browser-c1f4ac922657

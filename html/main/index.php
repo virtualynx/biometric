@@ -212,6 +212,8 @@ $env = new EnvFileModel();
     <script src="./src/js/fingerprint.sdk.min.js"></script>
     <!-- <script src="./src/js/custom3.js"></script> -->
 
+    <script src="./src/js/face-api/face-api.js"></script>
+
     <div class="container">
         <div class="row mx-3 mt-5 mb-3">
             <div class="col-12 text-center">
@@ -249,6 +251,8 @@ $env = new EnvFileModel();
     var fmdArray = [];
     var currentScanIndex = -1;
     var cameraStream = null;
+    var persons = [];
+    var faces = [];
 
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
@@ -281,6 +285,8 @@ $env = new EnvFileModel();
         renderCardRowTakePhoto();
 
         getCameraList();
+
+        initFaceRecognitions();
     });
 
     function xhrErrorCallback(xhr, status, error) {
@@ -341,7 +347,7 @@ $env = new EnvFileModel();
             data: {},
             dataType: "json",
             success: (res) => {
-                console.log('person/list', res);
+                // console.log('person/list', res);
                 if (res && res.length > 0) {
                     $('#datalist_manual').html('');
                     $('#datalist_verify').html('');
@@ -359,6 +365,8 @@ $env = new EnvFileModel();
                     });
                     $('#datalist_manual').trigger("change");
                     $('#datalist_verify').trigger("change");
+
+                    persons = res;
                 }
             },
             error: (xhr, status, error) => {
@@ -1059,6 +1067,163 @@ $env = new EnvFileModel();
                 }
             }
         });
+    }
+
+    function showPanelFinger(){
+        $('#panel-finger').removeClass('d-none');
+        $('#panel-face').addClass('d-none');
+    }
+
+    function showPanelFace(){
+        $('#panel-face').removeClass('d-none');
+        $('#panel-finger').addClass('d-none');
+
+        startFaceRecogCam();
+        loadFaces();
+    }
+
+    //face recognitions
+    async function initFaceRecognitions(){
+        const MODEL_URL = './src/js/face-api/models' //model directory
+        
+        await faceapi.loadSsdMobilenetv1Model(MODEL_URL) 
+        await faceapi.loadFaceLandmarkModel(MODEL_URL) // model to detect face landmark
+        await faceapi.loadFaceRecognitionModel(MODEL_URL) //model to Recognise Face
+        await faceapi.loadFaceExpressionModel(MODEL_URL) //model to detect face expression
+    }
+
+    function startFaceRecogCam(){
+        navigator.mediaDevices.enumerateDevices()
+            .then((mediaDevices) => {
+                mediaDevices.forEach(device => {
+                    // console.log('device', device);
+                    if (device.kind === 'videoinput') {
+                        $('#take_photo_cam_list').append(`
+                        <option value="${device.deviceId}">${device.label}</option>
+                    `);
+                    }
+                });
+
+                $("video#facecam").bind("loadedmetadata", function() {
+                    const canvas = document.querySelector("canvas#facecam_canvas");
+                    canvas.setAttribute('width', this.videoWidth);
+                    canvas.setAttribute('height', this.videoHeight);
+                });
+
+                navigator.mediaDevices.getUserMedia({
+                    'audio': false,
+                    'video': {
+                        'deviceId': mediaDevices[0].deviceId,
+                        'width': {
+                            'min': 640
+                        },
+                        'height': {
+                            'min': 480
+                        }
+                    }
+                }).then(stream => {
+                    const videoElement = document.querySelector('video#facecam');
+                    // videoElement.setAttribute('width', width);
+                    // videoElement.setAttribute('height', height);
+                    videoElement.srcObject = stream;
+                });
+            })
+            .catch((err1) => {
+                console.log('err1', err1);
+            });
+    }
+
+    function loadFaces(){
+        let niks = [];
+
+        persons.forEach(person => {
+            niks.push(person.nik);
+        });
+
+        $.ajax({
+            type: "POST",
+            url: "./api/face/list.php",
+            data: JSON.stringify({ person_ids: niks }),
+            // processData: false,
+            // contentType: "application/json",
+            dataType: "json",
+            success: (res) => {
+                faces = res.data;
+            },
+            error: xhrErrorCallback
+        });
+    }
+
+    async function recognizeFace() {
+        const video = document.querySelector('video#facecam');
+
+        let canvas = document.querySelector("canvas#facecam_canvas");
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        let base64 = canvas.toDataURL('image/jpeg');
+
+        $('#facecam_captured').attr('src', base64);
+
+        // $('#facecam_panel').addClass('d-none');
+        // $('#facecam_captured').removeClass('d-none');
+        $('#facecam_captured').addClass('d-none');
+
+        const img= document.getElementById('facecam_captured');
+        let faceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
+        // let faceDescription = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
+        canvas = $('#facecam_canvas').get(0);
+        faceapi.matchDimensions(canvas, img);
+
+        faceDescriptions = faceapi.resizeResults(faceDescriptions, img);
+        faceapi.draw.drawDetections(canvas, faceDescriptions);
+        faceapi.draw.drawFaceLandmarks(canvas, faceDescriptions);
+        faceapi.draw.drawFaceExpressions(canvas, faceDescriptions);
+
+        // console.log('faceDescriptions', faceDescriptions);
+
+        let recognized = null;
+        let lowestIndex = 1;
+        faces.forEach(face => {
+            // the smallest is the most similar
+            let similarityIndex = faceapi.euclideanDistance(faceDescriptions[0].descriptor, face.encoding);
+
+            console.log(`${face.person_id}`, similarityIndex);
+
+            if(similarityIndex <= 0.5 && similarityIndex < lowestIndex){
+                recognized = face;
+                lowestIndex = similarityIndex;
+            }
+        });
+
+        $('#verify_found_label').addClass('d-none');
+        $('#verify_not_found_label').addClass('d-none');
+        $('#verify_match').addClass('d-none');
+        $('#verify_not_match').addClass('d-none');
+
+        if(recognized != null){
+            let recognizedPerson = persons.find(a => a.nik == recognized.person_id);
+
+            $.ajax({
+                type: "POST",
+                url: "./api/person/getinfo.php",
+                data: {
+                    nik: recognized.person_id,
+                    without_photo: false
+                },
+                dataType: "json",
+                success: (res) => {
+                    console.log('getinfo', res);
+
+                    // setVerifyProfile(recognizedPerson);
+                    // $('#verify_found_label').removeClass('d-none');
+                },
+                error: (xhr, status, error) => {
+                    console.log('error', error);
+                }
+            });
+        }else{
+            $('#verify_not_found_label').removeClass('d-none');
+        }
     }
 </script>
 
