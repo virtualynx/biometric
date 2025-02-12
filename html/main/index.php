@@ -1072,6 +1072,8 @@ $env = new EnvFileModel();
     function showPanelFinger(){
         $('#panel-finger').removeClass('d-none');
         $('#panel-face').addClass('d-none');
+
+        stopFaceRecogCam();
     }
 
     function showPanelFace(){
@@ -1131,6 +1133,11 @@ $env = new EnvFileModel();
             .catch((err1) => {
                 console.log('err1', err1);
             });
+    }
+
+    function stopFaceRecogCam(){
+        const video = document.querySelector('video#facecam');
+        video.srcObject.getTracks().forEach(track => track.stop());
     }
 
     function loadFaces(){
@@ -1214,8 +1221,8 @@ $env = new EnvFileModel();
                 success: (res) => {
                     console.log('getinfo', res);
 
-                    // setVerifyProfile(recognizedPerson);
-                    // $('#verify_found_label').removeClass('d-none');
+                    setVerifyProfile(res);
+                    $('#verify_found_label').removeClass('d-none');
                 },
                 error: (xhr, status, error) => {
                     console.log('error', error);
