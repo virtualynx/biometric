@@ -217,6 +217,16 @@ $env = new EnvFileModel();
     <div class="container">
         <div class="row mx-3 mt-5 mb-3">
             <div class="col-12 text-center">
+                <select id="sk_list" onchange="fetchPersonList()">
+                    <option value="">-- Pilih Situs --</option>
+                    <option value="PPU">PPU</option>
+                    <option value="PPU">CIANJUR</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row mx-3 mt-5 mb-3">
+            <div class="col-12 text-center">
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link active" href="#register" role="tab" data-toggle="tab" onclick="fpAPi.onSamplesAcquired = ()=>{}">Register</a>
@@ -257,7 +267,7 @@ $env = new EnvFileModel();
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
 
-        fetchPersonList();
+        fetchSkNumbers();
 
         <?php
         $pm = new PersonModel();
@@ -311,40 +321,46 @@ $env = new EnvFileModel();
             });
     }
 
-    function fetchPersonList() {
-        // $.ajax({
-        //     type: "GET",
-        //     url: "./api/queue/list.php",
-        //     data: {},
-        //     dataType: "json",
-        //     success: (res) => {
-        //         // console.log('queue/list', res);
-        //         if(res && res.length > 0){
-        //             $('#datalist_manual').html('');
-        //             res.forEach(a => {
-        //                 if(a.status == 'PENDING'){
-        //                     $('#datalist_manual').append(`
-        //                         <option value="${a.nik}">
-        //                             ${a.person?.name} (${a.nik})
-        //                         </option>
-        //                     `);
-        //                 }
-        //             });
-        //             $('#datalist_manual').trigger("change");
-        //         }
-        //     },
-        //     error: (xhr, status, error) => {
-        //         // if(xhr.responseText != ''){
-        //         //     console.log('error', err);
-        //         // }
-        //     }
-        // });
-
-
+    function fetchSkNumbers(){
         $.ajax({
             type: "GET",
-            url: "./api/person/list.php",
+            url: "./api/master/sk.php",
             data: {},
+            dataType: "json",
+            success: (res) => {
+                console.log('fetchSkNumbers', res);
+
+                let sk_list = $('#sk_list').html('');
+                sk_list.append(`
+                    <option value="">-- Pilih SK --</option>
+                `);
+                res.forEach(row => {
+                    sk_list.append(`
+                        <option value="${row.sk_number}">${row.site_desc}</option>
+                    `);
+                });
+            },
+            error: (xhr, status, error) => {
+                // if(xhr.responseText != ''){
+                //     console.log('error', err);
+                // }
+            }
+        });
+    }
+
+    function fetchPersonList() {
+        let situs = $('#sk_list').val();
+        if(situs == ''){
+            console.log('no sk selected empty');
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "./api/person/list.php",
+            data: {
+                sk_number: situs
+            },
             dataType: "json",
             success: (res) => {
                 // console.log('person/list', res);

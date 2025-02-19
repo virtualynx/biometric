@@ -3,21 +3,6 @@
     <div class="col-12 card">
         <div class="card-body">
             <div class="row">
-                <div class="col-6">
-                    <button type="button" class="btn btn-primary btn-block" onclick="showPanelFinger()">Fingerprint</button>
-                </div>
-                <div class="col-6">
-                    <button type="button" class="btn btn-primary btn-block col-6" onclick="showPanelFace()">Face Recognition</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="panel-finger" class="col-12 card">
-        <div class="card-body">
-            <h5 class="card-title">Verify Fingerprint Data (<span class="fp-device-status" class="">?</span>)</h5>
-            
-            <div class="row">
                 <div class="col-12">
                     <div class="form-group">
                         <input 
@@ -32,6 +17,25 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="col-12 card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-6">
+                    <button type="button" class="btn btn-primary btn-block" onclick="showPanelFinger()">Fingerprint</button>
+                </div>
+                <div class="col-6">
+                    <button type="button" class="btn btn-primary btn-block col-6" onclick="showPanelFace()">Face Recognition</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="panel-finger" class="col-12 card">
+        <div class="card-body">
+            <h5 class="card-title">Verify Fingerprint Data (<span class="fp-device-status" class="">?</span>)</h5>
 
             <div class="row">
                 <div class="col-12">
@@ -57,22 +61,6 @@
     <div id="panel-face" class="col-12 card d-none">
         <div class="card-body">
             <h5 class="card-title">Verify Face Data</h5>
-            
-            <div class="row">
-                <div class="col-12">
-                    <div class="form-group">
-                        <input 
-                            class="form-control" 
-                            name="datalist_verify_input" 
-                            list="datalist_verify" 
-                            onfocus="this.value=''"
-                            onchange="fetchVerifyProfile()"
-                            placeholder="Search NIK / Name ..."
-                        >
-                        <datalist id="datalist_verify"></datalist>
-                    </div>
-                </div>
-            </div>
 
             <div class="row">
                 <div class="col-12">
