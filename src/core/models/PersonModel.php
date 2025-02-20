@@ -157,6 +157,9 @@ class PersonModel extends Database {
     }
 
     public function update_mobile(stdClass $person, string $sk_number): bool{
+        $luas_tanah = empty($person->luas_tanah)? "NULL": "'$person->luas_tanah'";
+        $luas_bangunan = empty($person->luas_bangunan)? "NULL": "'$person->luas_bangunan'";
+
         $res = $this->execute("
             update person
             set
@@ -165,8 +168,8 @@ class PersonModel extends Database {
                 familycard_no = '$person->familycard_no',
                 village = '$person->village',
                 phone = '$person->phone',
-                luas_tanah = '$person->luas_tanah',
-                luas_bangunan = '$person->luas_bangunan',
+                luas_tanah = $luas_tanah,
+                luas_bangunan = $luas_bangunan,
                 updated_at = current_timestamp()
             where
                 nik = '$person->nik'
