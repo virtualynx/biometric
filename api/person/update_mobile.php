@@ -34,11 +34,11 @@ try{
     }
 }
 
-if($person->luas_tanah !== $_POST['luas_tanah']){
-    $person->luas_tanah = $_POST['luas_tanah'];
+if(!empty($_POST['luas_tanah']) && $person->luas_tanah !== $_POST['luas_tanah']){
+    $person->luas_tanah = floatval($_POST['luas_tanah']);
 }
-if($person->luas_bangunan !== $_POST['luas_bangunan']){
-    $person->luas_bangunan = $_POST['luas_bangunan'];
+if(!empty($_POST['luas_bangunan']) && $person->luas_bangunan !== $_POST['luas_bangunan']){
+    $person->luas_bangunan = floatval($_POST['luas_bangunan']);
 }
 
 $fu = new FileUploadModel();

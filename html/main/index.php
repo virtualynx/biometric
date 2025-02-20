@@ -190,6 +190,27 @@ $env = new EnvFileModel();
             outline: 2px solid #81A263;
             box-shadow: none;
         }
+
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            -webkit-animation: spin 2s linear infinite; /* Safari */
+            animation: spin 2s linear infinite;
+        }
+
+        /* Safari */
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 
     <title>Biometric</title>
@@ -1180,18 +1201,15 @@ $env = new EnvFileModel();
     async function recognizeFace() {
         const video = document.querySelector('video#facecam');
 
-        let canvas = document.querySelector("canvas#facecam_canvas");
+        let canvas = document.querySelector("#facecam_canvas");
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
         let base64 = canvas.toDataURL('image/jpeg');
 
         $('#facecam_captured').attr('src', base64);
+        toggleLoadingFaceCam(true);
 
-        // $('#facecam_panel').addClass('d-none');
-        // $('#facecam_captured').removeClass('d-none');
-        $('#facecam_captured').addClass('d-none');
-
-        const img= document.getElementById('facecam_captured');
+        const img = document.getElementById('facecam_captured');
         let faceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
         // let faceDescription = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
         canvas = $('#facecam_canvas').get(0);
@@ -1203,6 +1221,13 @@ $env = new EnvFileModel();
         faceapi.draw.drawFaceExpressions(canvas, faceDescriptions);
 
         // console.log('faceDescriptions', faceDescriptions);
+        if(faceDescriptions.length == 0){
+            toggleLoadingFaceCam(false);
+            setTimeout(() => {
+                alert("Ulangi pengambilan gambar dalam posisi dan pencahayaan yang bagus");
+            }, 250);
+            return;
+        }
 
         let recognized = null;
         let lowestIndex = 1;
@@ -1239,6 +1264,7 @@ $env = new EnvFileModel();
 
                     setVerifyProfile(res);
                     $('#verify_found_label').removeClass('d-none');
+                    toggleLoadingFaceCam(false);
                 },
                 error: (xhr, status, error) => {
                     console.log('error', error);
@@ -1246,6 +1272,19 @@ $env = new EnvFileModel();
             });
         }else{
             $('#verify_not_found_label').removeClass('d-none');
+            toggleLoadingFaceCam(false);
+        }
+    }
+
+    function toggleLoadingFaceCam(isLoading = true){
+        if(isLoading){
+            $('#facecam_panel').addClass('d-none');
+            $('#facecam_captured').removeClass('d-none');
+            $('.loader').removeClass('d-none');
+        }else{
+            $('#facecam_panel').removeClass('d-none');
+            $('#facecam_captured').addClass('d-none');
+            $('.loader').addClass('d-none');
         }
     }
 </script>

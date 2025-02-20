@@ -48,9 +48,16 @@ try{
         }
         $person['photo'] = $bioPhoto;
     }
-}catch(\Exception $e){
-    echo $e->getMessage();
-    exit;
-}
 
-echo json_encode($person);
+    echo json_encode($person);
+}catch(\Exception $e){
+    if($e->getCode() >= 900){
+        echo json_encode([
+            'status' => $e->getCode(),
+            'message' => $e->getMessage()
+        ]);
+    }else{
+        header("HTTP/1.1 500 Internal Server Error");
+        echo $e->getMessage();
+    }
+}

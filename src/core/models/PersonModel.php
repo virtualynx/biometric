@@ -19,6 +19,10 @@ class PersonModel extends Database {
     private $fileUploadModel;
     private $faceModel;
 
+    public static $STATUS = [
+        
+    ];
+
     public function __construct(){
         parent::__construct();
         $this->photoModel = new PhotoModel();
@@ -49,7 +53,7 @@ class PersonModel extends Database {
         $persons = $this->query("select * from person where nik = '$nik' $where_sk");
 
         if(count($persons) == 0){
-            throw new \Exception('Data not found');
+            throw new \Exception('Data not found', 901);
         }
 
         $person = json_decode(json_encode($persons[0]), true);
@@ -242,13 +246,13 @@ class PersonModel extends Database {
 
         $biometricStatus = $this->getBiometricStatus($nik);
         if($biometricStatus->photo != 'completed'){
-            return 'Belum melakukan foto setengah badan';
+            return 'Belum melakukan foto wajah';
         }
-        if($biometricStatus->fingerprint != 'completed'){
-            return 'Belum melakukan rekam fingerprint';
+        if($biometricStatus->fingerprint != 'completed' && $biometricStatus->face != 'completed'){
+            return 'Belum melakukan rekam fingerprint maupun rekam wajah';
         }
 
-        //auto-generate REG, DOC-VERIFY
+        //auto-generate REG, DOC-VERIFY for already existing KTP and KK
         try{
             $res = $this->execute("
                 insert into trx_subject_status(
@@ -344,5 +348,9 @@ class PersonModel extends Database {
         }
 
         return $latestStatus->name;
+    }
+
+    public function setStatus(){
+
     }
 }
