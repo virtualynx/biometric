@@ -107,7 +107,7 @@ $env = new EnvFileModel();
             background-position: center;
             background-size: cover;
             min-height: 100vh;
-            padding: 20px 0;
+            /* padding: 20px 0; */
             display: grid;
             place-items: center;
             margin: 0;
@@ -127,7 +127,10 @@ $env = new EnvFileModel();
         .container {
             background-color: rgba(255, 255, 255, 0.9);
             border-radius: 10px;
-            padding: 5px 10px 15px;
+            /* padding-top: 25px; */
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-bottom: 15px;
         }
 
         .nav-tabs {
@@ -235,8 +238,12 @@ $env = new EnvFileModel();
 
     <script src="./src/js/face-api/face-api.js"></script>
 
+    <div id="loader-div" style="opacity: 0.5; width: 100%; height: 100%; position: fixed; background-color:black; z-index: 99999">
+        <div class="loader" class="d-none" style="position: absolute; left: 50%; top: 50%; -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%);"></div>
+    </div>
+
     <div class="container">
-        <div class="row mx-3 mt-5 mb-3">
+        <div class="row mx-3 mt-5 mb-3" style="margin-top: 25;">
             <div class="col-12 text-center">
                 <select id="sk_list" onchange="fetchPersonList()">
                     <option value="">-- Pilih Situs --</option>
@@ -324,6 +331,16 @@ $env = new EnvFileModel();
         console.log('xhr', xhr);
         console.log('status', status);
         console.log('error', error);
+        toggleLoader(false);
+    }
+
+    function toggleLoader(show = true){
+        let isHidden = $('#loader').hasClass('d-none');
+        if(show){
+            $('#loader-div').removeClass('d-none');
+        }else{
+            $('#loader-div').addClass('d-none');
+        }
     }
 
     function fingerprintDetector_callback() {
@@ -343,6 +360,8 @@ $env = new EnvFileModel();
     }
 
     function fetchSkNumbers(){
+        toggleLoader();
+
         $.ajax({
             type: "GET",
             url: "./api/master/sk.php",
@@ -360,12 +379,10 @@ $env = new EnvFileModel();
                         <option value="${row.sk_number}">${row.site_desc}</option>
                     `);
                 });
+
+                toggleLoader(false);
             },
-            error: (xhr, status, error) => {
-                // if(xhr.responseText != ''){
-                //     console.log('error', err);
-                // }
-            }
+            error: xhrErrorCallback
         });
     }
 
@@ -376,6 +393,7 @@ $env = new EnvFileModel();
             return;
         }
 
+        toggleLoader();
         $.ajax({
             type: "POST",
             url: "./api/person/list.php",
@@ -404,13 +422,11 @@ $env = new EnvFileModel();
                     $('#datalist_verify').trigger("change");
 
                     persons = res;
+                    loadFaces(persons.map(function(obj){ return obj.nik; }));
+                    toggleLoader(false);
                 }
             },
-            error: (xhr, status, error) => {
-                // if(xhr.responseText != ''){
-                //     console.log('error', err);
-                // }
-            }
+            error: xhrErrorCallback
         });
     }
 
@@ -678,6 +694,7 @@ $env = new EnvFileModel();
             nik = $('#manual_input_register').val().trim();
         }
 
+        toggleLoader();
         $.ajax({
             type: "POST",
             url: "./api/fingerprint/enroll.php",
@@ -696,6 +713,7 @@ $env = new EnvFileModel();
                     alert(`Failed: ${res.status}`);
                 }
                 $('#modalFingerprint').modal('hide');
+                toggleLoader(false);
             },
             error: xhrErrorCallback
         });
@@ -932,7 +950,6 @@ $env = new EnvFileModel();
         } else {
         ?>
             clearRegisterProfile();
-            fetchPersonList();
             alert('Biometric registration success');
         <?php
         }
@@ -968,8 +985,11 @@ $env = new EnvFileModel();
             },
             dataType: "json",
             success: (res) => {
-                // console.log('fetchVerifyProfile', res);
-                if (res) {
+                if(res.hasOwnProperty('status')){
+                    setTimeout(() => {
+                        alert(res.message);
+                    }, 250);
+                }else{
                     setVerifyProfile(res);
                 }
             },
@@ -1118,7 +1138,6 @@ $env = new EnvFileModel();
         $('#panel-finger').addClass('d-none');
 
         startFaceRecogCam();
-        loadFaces();
     }
 
     //face recognitions
@@ -1177,12 +1196,12 @@ $env = new EnvFileModel();
         video.srcObject.getTracks().forEach(track => track.stop());
     }
 
-    function loadFaces(){
-        let niks = [];
+    function loadFaces(niks){
+        // let niks = [];
 
-        persons.forEach(person => {
-            niks.push(person.nik);
-        });
+        // persons.forEach(person => {
+        //     niks.push(person.nik);
+        // });
 
         $.ajax({
             type: "POST",
@@ -1231,6 +1250,10 @@ $env = new EnvFileModel();
 
         let recognized = null;
         let lowestIndex = 1;
+
+        let specific_verify = $('[name="datalist_verify_input"]').val()?.trim();
+        console.log('specific_verify', specific_verify);
+
         faces.forEach(face => {
             // the smallest is the most similar
             let similarityIndex = faceapi.euclideanDistance(faceDescriptions[0].descriptor, face.encoding);
@@ -1247,6 +1270,7 @@ $env = new EnvFileModel();
         $('#verify_not_found_label').addClass('d-none');
         $('#verify_match').addClass('d-none');
         $('#verify_not_match').addClass('d-none');
+        clearVerifyProfile();
 
         if(recognized != null){
             let recognizedPerson = persons.find(a => a.nik == recognized.person_id);
@@ -1262,8 +1286,16 @@ $env = new EnvFileModel();
                 success: (res) => {
                     console.log('getinfo', res);
 
-                    setVerifyProfile(res);
-                    $('#verify_found_label').removeClass('d-none');
+                    if(res.hasOwnProperty('status')){
+                        $('#verify_not_found_label').removeClass('d-none');
+                        setTimeout(() => {
+                            alert(res.message);
+                        }, 250);
+                    }else{
+                        setVerifyProfile(res);
+                        $('#verify_found_label').removeClass('d-none');
+                    }
+
                     toggleLoadingFaceCam(false);
                 },
                 error: (xhr, status, error) => {

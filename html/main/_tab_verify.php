@@ -71,7 +71,6 @@
                     </div>
                     
                     <img id="facecam_captured" src="" style="max-width: 100%" />
-                    <div class="loader d-none"></div>
                 </div>
             </div>
 
