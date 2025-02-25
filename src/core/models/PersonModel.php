@@ -32,7 +32,11 @@ class PersonModel extends Database {
     }
 
     public function list(): array{
-        $persons = $this->query("select * from person order by created_at desc");
+        $persons = $this->query("
+            select * 
+            from person 
+            where deleted_at is NULL
+            order by created_at desc");
 
         $persons = json_decode(json_encode($persons), true);
         foreach($persons as &$row){
@@ -202,6 +206,18 @@ class PersonModel extends Database {
                 , updated_at = current_timestamp()
             where
                 nik = '$person->nik'
+                and sk_number = '$sk_number'
+        ");
+
+        return $res;
+    }
+
+    public function delete(string $nik, string $sk_number){
+        $res = $this->execute("
+            update person
+            set deleted_at = current_timestamp()
+            where 
+                nik = '$nik'
                 and sk_number = '$sk_number'
         ");
 
