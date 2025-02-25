@@ -82,6 +82,50 @@ if(!empty($_POST['face_encoding'])){
     $fm->enroll($_POST['nik'], 'NIK', $encoding);
 }
 
+// beneficiaries
+if(!empty($_POST['beneficiary_nik'])){
+    $person->beneficiary_nik = $_POST['beneficiary_nik'];
+}
+if(!empty($_POST['beneficiary_familycard_no'])){
+    $person->beneficiary_familycard_no = $_POST['beneficiary_familycard_no'];
+}
+if(!empty($_POST['beneficiary_name'])){
+    $person->beneficiary_name = $_POST['beneficiary_name'];
+}
+if(!empty($_POST['beneficiary_address'])){
+    $person->beneficiary_address = $_POST['beneficiary_address'];
+}
+if(!empty($_POST['beneficiary_photo_ktp'])){
+    $filedata = $fu->upload($_POST['beneficiary_photo_ktp'], 'KTP_BEN_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
+    try{
+        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'KTP-BEN', null, $filedata->extension);
+    }catch(\mysqli_sql_exception $e){
+        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+            throw $e;
+        }
+    }
+}
+if(!empty($_POST['beneficiary_photo_kk'])){
+    $filedata = $fu->upload($_POST['beneficiary_photo_kk'], 'KK_BEN_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
+    try{
+        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'KK-BEN', null, $filedata->extension);
+    }catch(\mysqli_sql_exception $e){
+        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+            throw $e;
+        }
+    }
+}
+if(!empty($_POST['beneficiary_poa'])){
+    $filedata = $fu->upload($_POST['beneficiary_poa'], 'POA_BEN_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
+    try{
+        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'POA-BEN', null, $filedata->extension);
+    }catch(\mysqli_sql_exception $e){
+        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
+            throw $e;
+        }
+    }
+}
+
 $pm->update_mobile($person, $_POST['sk_number']);
 
 echo json_encode(['status' => 'success']);
