@@ -247,8 +247,6 @@ $env = new EnvFileModel();
             <div class="col-12 text-center">
                 <select id="sk_list" onchange="fetchPersonList()">
                     <option value="">-- Pilih Situs --</option>
-                    <option value="PPU">PPU</option>
-                    <option value="PPU">CIANJUR</option>
                 </select>
             </div>
         </div>
@@ -290,7 +288,6 @@ $env = new EnvFileModel();
     var currentScanIndex = -1;
     var cameraStream = null;
     var persons = [];
-    var faces = [];
 
     $(document).ready(function() {
         setInterval(fingerprintDetector_callback, 2000);
@@ -1202,6 +1199,7 @@ $env = new EnvFileModel();
         // persons.forEach(person => {
         //     niks.push(person.nik);
         // });
+        toggleLoader();
 
         $.ajax({
             type: "POST",
@@ -1211,7 +1209,20 @@ $env = new EnvFileModel();
             // contentType: "application/json",
             dataType: "json",
             success: (res) => {
-                faces = res.data;
+                let faces = res.data;
+                let persons_temp = [];
+                persons.forEach(p => {
+                    p.face = null;
+                    let find = faces.find(f => f.person_id == p.nik);
+                    if(find){
+                        p.face = find.encoding;
+                    }
+
+                    persons_temp.push(p);
+                });
+
+                persons = persons_temp;
+                toggleLoader(false);
             },
             error: xhrErrorCallback
         });
@@ -1254,14 +1265,19 @@ $env = new EnvFileModel();
         let specific_verify = $('[name="datalist_verify_input"]').val()?.trim();
         console.log('specific_verify', specific_verify);
 
-        faces.forEach(face => {
-            // the smallest is the most similar
-            let similarityIndex = faceapi.euclideanDistance(faceDescriptions[0].descriptor, face.encoding);
+        let persons_temp = persons;
+        if(specific_verify.length > 0){
+            persons_temp = persons_temp.filter(a => a.nik == specific_verify);
+        }
 
-            console.log(`${face.person_id}`, similarityIndex);
+        persons_temp.forEach(p => {
+            // the smallest is the most similar
+            let similarityIndex = faceapi.euclideanDistance(faceDescriptions[0].descriptor, p.face);
+
+            console.log(`${p.nik}`, similarityIndex);
 
             if(similarityIndex <= 0.5 && similarityIndex < lowestIndex){
-                recognized = face;
+                recognized = p;
                 lowestIndex = similarityIndex;
             }
         });
@@ -1273,13 +1289,11 @@ $env = new EnvFileModel();
         clearVerifyProfile();
 
         if(recognized != null){
-            let recognizedPerson = persons.find(a => a.nik == recognized.person_id);
-
             $.ajax({
                 type: "POST",
                 url: "./api/person/getinfo.php",
                 data: {
-                    nik: recognized.person_id,
+                    nik: recognized.nik,
                     without_photo: false
                 },
                 dataType: "json",
@@ -1299,7 +1313,15 @@ $env = new EnvFileModel();
                     toggleLoadingFaceCam(false);
                 },
                 error: (xhr, status, error) => {
-                    console.log('error', error);
+                    if(xhr.status == 500 && xhr.responseText.startsWith("File ") && xhr.responseText.endsWith(" does not exists")){
+                        setTimeout(() => {
+                            alert(`${xhr.responseText}`);
+                        }, 250);
+                    }else{
+                        console.log('error', error);
+                        console.log('responseText', xhr.responseText);
+                    }
+                    toggleLoadingFaceCam(false);
                 }
             });
         }else{
