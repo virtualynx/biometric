@@ -117,8 +117,9 @@ class PersonModel extends Database {
             throw new \Exception('Data exists');
         }
 
-        $luas_tanah = empty($person->luas_tanah)? "NULL": "'$person->luas_tanah'";
-        $luas_bangunan = empty($person->luas_bangunan)? "NULL": "'$person->luas_bangunan'";
+        $sk_number = empty($person->sk_number)? "NULL": "'$person->sk_number'";
+        $luas_tanah = empty($person->luas_tanah)? "NULL": "$person->luas_tanah";
+        $luas_bangunan = empty($person->luas_bangunan)? "NULL": "$person->luas_bangunan";
         $beneficiary_nik = empty($person->beneficiary_nik)? "NULL": "'$person->beneficiary_nik'";
         $beneficiary_familycard_no = empty($person->beneficiary_familycard_no)? "NULL": "'$person->beneficiary_familycard_no'";
         $beneficiary_name = empty($person->beneficiary_name)? "NULL": "'$person->beneficiary_name'";
@@ -132,6 +133,7 @@ class PersonModel extends Database {
                 familycard_no,
                 village,
                 phone,
+                sk_number,
                 luas_tanah,
                 luas_bangunan,
                 beneficiary_nik,
@@ -146,12 +148,13 @@ class PersonModel extends Database {
                 '$person->familycard_no',
                 '$person->village',
                 '$person->phone',
+                $sk_number,
                 $luas_tanah,
                 $luas_bangunan,
-                '$beneficiary_nik',
-                '$beneficiary_familycard_no',
-                '$beneficiary_name',
-                '$beneficiary_address'
+                $beneficiary_nik,
+                $beneficiary_familycard_no,
+                $beneficiary_name,
+                $beneficiary_address
             )
         ");
 
