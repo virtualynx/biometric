@@ -117,6 +117,13 @@ class PersonModel extends Database {
             throw new \Exception('Data exists');
         }
 
+        $luas_tanah = empty($person->luas_tanah)? "NULL": "'$person->luas_tanah'";
+        $luas_bangunan = empty($person->luas_bangunan)? "NULL": "'$person->luas_bangunan'";
+        $beneficiary_nik = empty($person->beneficiary_nik)? "NULL": "'$person->beneficiary_nik'";
+        $beneficiary_familycard_no = empty($person->beneficiary_familycard_no)? "NULL": "'$person->beneficiary_familycard_no'";
+        $beneficiary_name = empty($person->beneficiary_name)? "NULL": "'$person->beneficiary_name'";
+        $beneficiary_address = empty($person->beneficiary_address)? "NULL": "'$person->beneficiary_address'";
+
         $res = $this->execute("
             insert into person(
                 nik,
@@ -124,7 +131,13 @@ class PersonModel extends Database {
                 address,
                 familycard_no,
                 village,
-                phone
+                phone,
+                luas_tanah,
+                luas_bangunan,
+                beneficiary_nik,
+                beneficiary_familycard_no,
+                beneficiary_name,
+                beneficiary_address
             )
             values(
                 '$person->nik',
@@ -132,7 +145,13 @@ class PersonModel extends Database {
                 '$person->address',
                 '$person->familycard_no',
                 '$person->village',
-                '$person->phone'
+                '$person->phone',
+                '$luas_tanah',
+                '$luas_bangunan',
+                '$beneficiary_nik',
+                '$beneficiary_familycard_no',
+                '$beneficiary_name',
+                '$beneficiary_address'
             )
         ");
 
@@ -147,8 +166,14 @@ class PersonModel extends Database {
                 address = '$person->address',
                 familycard_no = '$person->familycard_no',
                 village = '$person->village',
-                phone = '$person->phone',
-                updated_at = current_timestamp()
+                phone = '$person->phone'
+                ".( !empty($person->luas_tanah)? ", luas_tanah = $person->luas_tanah": '' )."
+                ".( !empty($person->luas_bangunan)? ", luas_bangunan = $person->luas_bangunan": '' )."
+                ".( !empty($person->beneficiary_nik)? ", beneficiary_nik = '$person->beneficiary_nik'": '' )."
+                ".( !empty($person->beneficiary_familycard_no)? ", beneficiary_familycard_no = '$person->beneficiary_familycard_no'": '' )."
+                ".( !empty($person->beneficiary_name)? ", beneficiary_name = '$person->beneficiary_name'": '' )."
+                ".( !empty($person->beneficiary_address)? ", beneficiary_address = '$person->beneficiary_address'": '' )."
+                , updated_at = current_timestamp()
             where
                 nik = '$person->nik'
         ");
@@ -157,9 +182,6 @@ class PersonModel extends Database {
     }
 
     public function update_mobile(stdClass $person, string $sk_number): bool{
-        $luas_tanah = empty($person->luas_tanah)? "NULL": "'$person->luas_tanah'";
-        $luas_bangunan = empty($person->luas_bangunan)? "NULL": "'$person->luas_bangunan'";
-
         $res = $this->execute("
             update person
             set
@@ -167,10 +189,14 @@ class PersonModel extends Database {
                 address = '$person->address',
                 familycard_no = '$person->familycard_no',
                 village = '$person->village',
-                phone = '$person->phone',
-                luas_tanah = $luas_tanah,
-                luas_bangunan = $luas_bangunan,
-                updated_at = current_timestamp()
+                phone = '$person->phone'
+                ".( !empty($person->luas_tanah)? ", luas_tanah = $person->luas_tanah": '' )."
+                ".( !empty($person->luas_bangunan)? ", luas_bangunan = $person->luas_bangunan": '' )."
+                ".( !empty($person->beneficiary_nik)? ", beneficiary_nik = '$person->beneficiary_nik'": '' )."
+                ".( !empty($person->beneficiary_familycard_no)? ", beneficiary_familycard_no = '$person->beneficiary_familycard_no'": '' )."
+                ".( !empty($person->beneficiary_name)? ", beneficiary_name = '$person->beneficiary_name'": '' )."
+                ".( !empty($person->beneficiary_address)? ", beneficiary_address = '$person->beneficiary_address'": '' )."
+                , updated_at = current_timestamp()
             where
                 nik = '$person->nik'
                 and sk_number = '$sk_number'

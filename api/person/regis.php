@@ -39,7 +39,13 @@ if(empty($person)){
         'address' => $_POST['address'],
         'familycard_no' => $_POST['familycard_no'],
         'village' => $_POST['village'],
-        'phone' => $_POST['phone']
+        'phone' => $_POST['phone'],
+        'luas_tanah' => !empty($_POST['luas_tanah'])? floatval($_POST['luas_tanah']): null,
+        'luas_bangunan' => !empty($_POST['luas_bangunan'])? floatval($_POST['luas_bangunan']): null,
+        'beneficiary_nik' => !empty($_POST['beneficiary_nik'])? $_POST['beneficiary_nik']: null,
+        'beneficiary_familycard_no' => !empty($_POST['beneficiary_familycard_no'])? $_POST['beneficiary_familycard_no']: null,
+        'beneficiary_name' => !empty($_POST['beneficiary_name'])? $_POST['beneficiary_name']: null,
+        'beneficiary_address' => !empty($_POST['beneficiary_address'])? $_POST['beneficiary_address']: null
     ]));
 
     $pm->add($person);
@@ -49,6 +55,14 @@ if(empty($person)){
     $person->familycard_no = $_POST['familycard_no'];
     $person->village = $_POST['village'];
     $person->phone = $_POST['phone'];
+    
+    $person->luas_tanah = !empty($_POST['luas_tanah'])? floatval($_POST['luas_tanah']): null;
+    $person->luas_bangunan = !empty($_POST['luas_bangunan'])? floatval($_POST['luas_bangunan']): null;
+
+    $person->beneficiary_nik = !empty($_POST['beneficiary_nik'])? $_POST['beneficiary_nik']: null;
+    $person->beneficiary_familycard_no = !empty($_POST['beneficiary_familycard_no'])? $_POST['beneficiary_familycard_no']: null;
+    $person->beneficiary_name = !empty($_POST['beneficiary_name'])? $_POST['beneficiary_name']: null;
+    $person->beneficiary_address = !empty($_POST['beneficiary_address'])? $_POST['beneficiary_address']: null;
 
     $pm->update($person);
 }
