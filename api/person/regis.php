@@ -39,7 +39,7 @@ if(empty($person)){
         'address' => $_POST['address'],
         'familycard_no' => $_POST['familycard_no'],
         'village' => $_POST['village'],
-        'phone' => $_POST['phone'],
+        'phone' => !empty($_POST['phone'])? $_POST['phone']: null,
         'luas_tanah' => !empty($_POST['luas_tanah'])? floatval($_POST['luas_tanah']): null,
         'luas_bangunan' => !empty($_POST['luas_bangunan'])? floatval($_POST['luas_bangunan']): null,
         'beneficiary_nik' => !empty($_POST['beneficiary_nik'])? $_POST['beneficiary_nik']: null,
