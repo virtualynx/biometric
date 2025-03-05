@@ -71,6 +71,10 @@ class Database {
         }
     }
 
+    function rollbackTransaction(){
+        $this->conn->rollback();
+    }
+
     function getLastInsertedId(){
         $last_id = mysqli_insert_id($this->conn);
 

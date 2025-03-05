@@ -4,47 +4,55 @@ require_once(dirname(__FILE__)."/../../src/core/Database.php");
 
 use biometric\src\core\Database;
 
-if(empty($_POST['nik']) || empty($_POST['act_id']) || empty($_POST['value'])){
+if(empty($_POST['nik']) || empty($_POST['acts'])){
     http_response_code(400);
     echo 'Missing required parameters';
     exit;
 }
 
 $nik = $_POST['nik'];
-$act_id = $_POST['act_id'];
-$value = filter_var($_POST['value'], FILTER_VALIDATE_BOOLEAN);
 
 $db = new Database();
 try{
-    $existings = $db->query("
-        select *
-        from trx_subject_status
-        where
-            nik = '$nik'
-            and act_id = '$act_id'
-    ");
-    $existing = null;
-    if(count($existings) > 0){
-        $existing = $existings[0];
-    }
-    if($value == true){
+    $db->beginTransaction();
+
+    $acts = $_POST['acts'];
+
+    foreach($acts as $act){
+        $act_id = $act['act_id'];
+        $value = intval(filter_var($act['value'], FILTER_VALIDATE_BOOLEAN));
+    
+        $existings = $db->query("
+            select *
+            from trx_subject_status
+            where
+                nik = '$nik'
+                and status_id = '$act_id'
+        ");
+        $existing = null;
+        if(count($existings) > 0){
+            $existing = $existings[0];
+        }
+
         if(empty($existing)){
             $res = $db->execute("
-                insert into trx_subject_status(nik, act_id)
-                values('$nik', '$act_id')
+                insert into trx_subject_status(nik, status_id, is_done)
+                values('$nik', '$act_id', $value)
             ");
-        }
-    }else{
-        if(!empty($existing)){
+        }else{
             $res = $db->execute("
-                delete from trx_subject_status
+                update trx_subject_status set
+                    is_done = $value
                 where
                     nik = '$nik'
-                    and act_id = '$act_id'
+                    and status_id = '$act_id'
             ");
         }
     }
+    
+    $db->endTransaction();
 }catch(\Exception $e){
+    $db->rollbackTransaction();
     echo $e->getMessage();
     exit;
 }
