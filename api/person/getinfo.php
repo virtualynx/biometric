@@ -49,6 +49,8 @@ try{
         $person['photo'] = $bioPhoto;
     }
 
+    $person['status_list'] = $pm->getStatusList($_POST['nik']);
+
     echo json_encode($person);
 }catch(\Exception $e){
     if($e->getCode() >= 900){

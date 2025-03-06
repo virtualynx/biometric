@@ -398,7 +398,22 @@ class PersonModel extends Database {
         return $latestStatus->name;
     }
 
-    public function setStatus(){
+    public function getStatusList($nik){
+        $res = $this->query("
+            select 
+                tss.status_id,
+                ms.name,
+                tss.is_done
+            from 
+                trx_subject_status tss
+                join master_status ms on tss.status_id = ms.id
+            where
+                ms.disabled = 0
+                and tss.nik = '$nik'
+            order by
+                ms.`order` asc
+        ");
 
+        return $res;
     }
 }
