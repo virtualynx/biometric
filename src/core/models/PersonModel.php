@@ -399,7 +399,22 @@ class PersonModel extends Database {
     }
 
     public function getStatusList($nik){
-        $res = $this->query("
+        $res_masters = $this->query("
+            select 
+                ms.id,
+                ms.name,
+                0 as is_done
+            from 
+                master_status ms
+            where
+                ms.disabled = 0
+            order by
+                ms.`order` asc
+        ");
+
+        $results = json_decode(json_encode($res_masters), true);
+
+        $trx_status = $this->query("
             select 
                 tss.status_id,
                 ms.name,
@@ -414,6 +429,17 @@ class PersonModel extends Database {
                 ms.`order` asc
         ");
 
-        return $res;
+        foreach($results as &$row){
+            foreach($trx_status as $status){
+                if($row['id'] == $status->status_id){
+                    $row['is_done'] = $status->is_done;
+                }
+            }
+
+            $row['is_done'] = intval($row['is_done']);
+        }
+        unset($row);
+
+        return $results;
     }
 }
