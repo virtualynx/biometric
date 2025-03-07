@@ -344,7 +344,6 @@ class PersonModel extends Database {
             }
         }
 
-        $latestStatus = null;
         $trxSubjectStatus = $this->query("
             select 
                 tss.*,
@@ -359,8 +358,15 @@ class PersonModel extends Database {
             order by
                 ms.`order` desc
         ");
+
+        $latestStatus = null;
         if(!empty($trxSubjectStatus)){
-            $latestStatus = $trxSubjectStatus[0];
+            foreach($trxSubjectStatus as $row){
+                if($row->is_done == 1){
+                    break;
+                }
+                $latestStatus = $row;
+            }
         }
 
         //auto-generated status log
