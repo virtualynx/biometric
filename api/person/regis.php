@@ -18,11 +18,9 @@ use biometric\src\core\models\QueueModel;
 use biometric\src\core\models\FaceModel;
 use biometric\src\core\utils\Helper;
 
-// --- INPUT HANDLING --- //
 $raw = file_get_contents("php://input");
 $input = json_decode($raw, true);
 
-// If JSON decode fails or input isn't an array, fallback to $_POST (form-data)
 if (json_last_error() !== JSON_ERROR_NONE || !is_array($input)) {
     $input = $_POST;
 }
@@ -98,124 +96,154 @@ $fu = new FileUploadModel();
 $phm = new PhotoModel();
 $fm = new FaceModel();
 
-
-function saveBase64PhotoToTable(string $base64, string $nik, string $type, $db)
+function saveBase64PhotoToTable(string $base64, string $nik, string $type, $fu, $db)
 {
-    global $fu; 
-
     if (empty($base64)) return null;
 
-    if (preg_match('/^data:image\/(\w+);base64,/', $base64, $matches)) {
-        $ext = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
-        $base64 = substr($base64, strpos($base64, ',') + 1);
+    // Decode base64 string
+    if (strpos($base64, 'base64,') !== false) {
+        [$meta, $data] = explode(';base64,', $base64);
     } else {
-        $ext = 'png';
+        $meta = 'data:image/png';
+        $data = $base64;
     }
 
-    $filename = "{$type}_" . uniqid() . ".{$ext}";
-    $path = "person/{$nik}/photos";
+    $image_bin = base64_decode($data);
+    if ($image_bin === false) return null;
 
-    $upload = $fu->upload($base64, $filename, $path, true, true);
+    // Determine file extension
+    $ext = 'png';
+    if (preg_match('/data:image\/([a-zA-Z0-9]+)/', $meta, $m)) {
+        $ext = strtolower($m[1]);
+        if ($ext === 'jpeg') $ext = 'jpg';
+    }
 
-    $file_path = $upload->path;
+    // Special handling for photo_profile
+    if ($type === 'biometric') {
+        // filename = {nik}.png and path = person/{nik}/
+        $filename = "{$nik}.{$ext}";
+        $path = "person/{$nik}";
+    } else {
+        // default behavior for other photos
+        $filename = "{$type}_" . uniqid() . ".{$ext}";
+        $path = "person/{$nik}/photos";
+    }
+
+    // Upload using FileUploadModel
+    $result = $fu->upload($base64, $filename, $path, true, true);
+
+    // Description
     $desc = ucfirst($type) . " photo";
 
+    // Save to DB (PDO-safe or mysqli-safe version)
     $stmt = $db->prepare("
         INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
         VALUES (?, ?, ?, ?, ?, ?, NOW())
     ");
-    $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $file_path);
-    $stmt->execute();
-    $stmt->close();
+    if (method_exists($stmt, 'bind_param')) {
+        // mysqli
+        $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $result->path);
+        $stmt->execute();
+        $stmt->close();
+    } else {
+        // PDO
+        $stmt->execute([$nik, $filename, $ext, $type, $desc, $result->path]);
+    }
 
-    return $file_path;
+    return $result->path;
 }
 
 
-function saveBase64DocumentToTable(string $base64, string $nik, string $doctype, $db)
+function saveBase64DocumentToTable(string $base64, string $nik, string $doctype, $fu, $db)
 {
-    global $fu; 
-
     if (empty($base64)) return null;
 
-    if (preg_match('/^data:([a-zA-Z0-9\/]+);base64,/', $base64, $matches)) {
-        $mime = $matches[1];
-        $base64 = substr($base64, strpos($base64, ',') + 1);
-
-        $ext = explode('/', $mime)[1] ?? 'png';
-        if ($ext === 'jpeg') $ext = 'jpg';
+    if (strpos($base64, 'base64,') !== false) {
+        [$meta, $data] = explode(';base64,', $base64);
     } else {
-        $ext = 'png';
+        $meta = 'data:application/pdf';
+        $data = $base64;
+    }
+
+    $image_bin = base64_decode($data);
+    if ($image_bin === false) return null;
+
+    $ext = 'png';
+    if (preg_match('/data:(image|application)\/([a-zA-Z0-9]+)/', $meta, $m)) {
+        $ext = strtolower($m[2]);
+        if ($ext === 'jpeg') $ext = 'jpg';
     }
 
     $filename = "{$doctype}_" . uniqid() . ".{$ext}";
     $path = "person/{$nik}/documents";
 
-    $upload = $fu->upload($base64, $filename, $path, true, true);
+    // Upload using FileUploadModel
+    $result = $fu->upload($base64, $filename, $path, true, true);
 
-    $file_path = $upload->path;
     $desc = strtoupper($doctype) . " document";
-
-    $stmt = $db->prepare("
-        INSERT INTO document (nik, filename, extension, type, description, file_path, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-    ");
-    $stmt->bind_param("ssssss", $nik, $filename, $ext, $doctype, $desc, $file_path);
+    $stmt = $db->prepare("INSERT INTO document (nik, filename, extension, type, description, file_path, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("ssssss", $nik, $filename, $ext, $doctype, $desc, $result->path);
     $stmt->execute();
     $stmt->close();
 
-    return $file_path;
+    return $result->path;
 }
 
-function saveBase64PhotoToTableWithDesc(string $base64, string $nik, string $type, string $desc, $db)
-{
-    global $fu; 
 
+function saveBase64PhotoToTableWithDesc(string $base64, string $nik, string $type, string $desc, $fu, $db)
+{
     if (empty($base64)) return null;
 
-    if (preg_match('/^data:image\/(\w+);base64,/', $base64, $matches)) {
-        $ext = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
-        $base64 = substr($base64, strpos($base64, ',') + 1);
+    if (strpos($base64, 'base64,') !== false) {
+        [$meta, $data] = explode(';base64,', $base64);
     } else {
-        $ext = 'png';
+        $meta = 'data:image/png';
+        $data = $base64;
+    }
+
+    $image_bin = base64_decode($data);
+    if ($image_bin === false) return null;
+
+    $ext = 'png';
+    if (preg_match('/data:image\/([a-zA-Z0-9]+)/', $meta, $m)) {
+        $ext = strtolower($m[1]);
+        if ($ext === 'jpeg') $ext = 'jpg';
     }
 
     $filename = "{$type}_" . uniqid() . ".{$ext}";
     $path = "person/{$nik}/photos";
 
-    $upload = $fu->upload($base64, $filename, $path, true, true);
+    // Upload file
+    $result = $fu->upload($base64, $filename, $path, true, true);
 
-    $file_path = $upload->path;
-
-    $stmt = $db->prepare("
-        INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-    ");
-    $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $file_path);
+    $stmt = $db->prepare("INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $result->path);
     $stmt->execute();
     $stmt->close();
 
-    return $file_path;
+    return $result->path;
 }
 
 
 if (!empty($input['photo_profile'])) {
-    saveBase64PhotoToTable($input['photo_profile'], $input['nik'], "biometric", $db);
+    saveBase64PhotoToTable($input['photo_profile'], $input['nik'], "biometric", $fu, $db);
 }
 
 if (!empty($input['photo_ktp'])) {
-    saveBase64DocumentToTable($input['photo_ktp'], $input['nik'], "KTP", $db);
+    saveBase64DocumentToTable($input['photo_ktp'], $input['nik'], "KTP", $fu, $db);
 }
 
 if (!empty($input['photo_kk'])) {
-    saveBase64DocumentToTable($input['photo_kk'], $input['nik'], "KK", $db);
+    saveBase64DocumentToTable($input['photo_kk'], $input['nik'], "KK", $fu, $db);
 }
 if (!empty($input['photos']) && is_array($input['photos'])) {
     foreach ($input['photos'] as $photoItem) {
         if (is_array($photoItem) && !empty($photoItem['base64'])) {
             $base64 = $photoItem['base64'];
             $desc = $photoItem['description'] ?? 'Documentation photo';
-            saveBase64PhotoToTableWithDesc($base64, $input['nik'], "documentation", $desc, $db);
+            saveBase64PhotoToTableWithDesc($base64, $input['nik'], "documentation", $desc, $fu, $db);
         }
     }
 }
