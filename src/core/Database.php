@@ -1,27 +1,30 @@
 <?php
+
 namespace biometric\src\core;
 
-require_once(dirname(__FILE__)."/models/EnvFileModel.php");
+require_once(dirname(__FILE__) . "/models/EnvFileModel.php");
 
 use biometric\src\core\models\EnvFileModel;
 use mysqli;
 
 date_default_timezone_set("Asia/Jakarta");
 
-class Database {
+class Database
+{
     // private const host = "localhost";
     // private const user = "root";
     // private const password = "";
     // private const database = "biometric";
 
-    private $host = "localhost";
+    private $host = "127.0.0.1";
     private $user = "root";
     private $password = "";
-    private $database = "biometric";
+    private $database = "biometric_ra";
 
     private $conn;
 
-    function __construct(){
+    function __construct()
+    {
         $env = new EnvFileModel();
 
         $this->host = $env->get('BIOMETRIC_DB_HOST');
@@ -29,7 +32,7 @@ class Database {
         $this->password = $env->get('BIOMETRIC_DB_PASSWORD');
         $this->database = $env->get('BIOMETRIC_DB_NAME');
 
-        mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
         $this->conn = new mysqli($this->host, $this->user, $this->password, $this->database);
         if (mysqli_connect_errno()) {
@@ -38,44 +41,56 @@ class Database {
         }
     }
 
-    function __destruct() {
-        if(!empty($this->conn)){
+    public function getConnection()
+    {
+        return $this->conn;
+    }
+
+    function __destruct()
+    {
+        if (!empty($this->conn)) {
             $this->conn->close();
         }
     }
 
-    function query($query){
+    function query($query)
+    {
         $results = [];
         $rs = mysqli_query($this->conn, $query);
 
-        while($row = mysqli_fetch_assoc($rs)) {
-            $results []= $row;
+        while ($row = mysqli_fetch_assoc($rs)) {
+            $results[] = $row;
         }
 
         return json_decode(json_encode($results));
     }
 
-    function execute($query){
+    function execute($query)
+    {
         $rs = mysqli_query($this->conn, $query);
 
         return $rs;
     }
 
-    function beginTransaction(){
+    function beginTransaction()
+    {
         $this->conn->autocommit(FALSE);
     }
 
-    function endTransaction(){
-        if($this->conn->commit() == false){
+    function endTransaction()
+    {
+        if ($this->conn->commit() == false) {
             $this->conn->rollback();
         }
     }
 
-    function rollbackTransaction(){
+    function rollbackTransaction()
+    {
         $this->conn->rollback();
     }
 
-    function getLastInsertedId(){
+    function getLastInsertedId()
+    {
         $last_id = mysqli_insert_id($this->conn);
 
         return $last_id;
