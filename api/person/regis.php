@@ -98,37 +98,32 @@ $fu = new FileUploadModel();
 $phm = new PhotoModel();
 $fm = new FaceModel();
 
+
 function saveBase64PhotoToTable(string $base64, string $nik, string $type, $db)
 {
+    global $fu; 
+
     if (empty($base64)) return null;
 
-    if (strpos($base64, 'base64,') !== false) {
-        $parts = explode(';base64,', $base64);
-        $meta = $parts[0];
-        $data = $parts[1];
+    if (preg_match('/^data:image\/(\w+);base64,/', $base64, $matches)) {
+        $ext = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
+        $base64 = substr($base64, strpos($base64, ',') + 1);
     } else {
-        $data = $base64;
-        $meta = 'data:image/png';
+        $ext = 'png';
     }
 
-    $image_bin = base64_decode($data);
-    if ($image_bin === false) return null;
+    $filename = "{$type}_" . uniqid() . ".{$ext}";
+    $path = "person/{$nik}/photos";
 
-    $ext = 'png';
-    if (preg_match('/data:image\/([a-zA-Z0-9]+)/', $meta, $m)) {
-        $ext = $m[1];
-        if ($ext === 'jpeg') $ext = 'jpg';
-    }
+    $upload = $fu->upload($base64, $filename, $path, true, true);
 
-    $filename = $type . "_" . uniqid() . "." . $ext;
-    $folder = "uploads/person/{$nik}/photos/";
-    if (!is_dir($folder)) mkdir($folder, 0777, true);
-
-    $file_path = $folder . $filename;
-    file_put_contents($file_path, $image_bin);
-
-    $stmt = $db->prepare("INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $file_path = $upload->path;
     $desc = ucfirst($type) . " photo";
+
+    $stmt = $db->prepare("
+        INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+    ");
     $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $file_path);
     $stmt->execute();
     $stmt->close();
@@ -136,37 +131,35 @@ function saveBase64PhotoToTable(string $base64, string $nik, string $type, $db)
     return $file_path;
 }
 
+
 function saveBase64DocumentToTable(string $base64, string $nik, string $doctype, $db)
 {
+    global $fu; 
+
     if (empty($base64)) return null;
 
-    if (strpos($base64, 'base64,') !== false) {
-        $parts = explode(';base64,', $base64);
-        $meta = $parts[0];
-        $data = $parts[1];
-    } else {
-        $data = $base64;
-        $meta = 'data:image/png';
-    }
+    if (preg_match('/^data:([a-zA-Z0-9\/]+);base64,/', $base64, $matches)) {
+        $mime = $matches[1];
+        $base64 = substr($base64, strpos($base64, ',') + 1);
 
-    $image_bin = base64_decode($data);
-    if ($image_bin === false) return null;
-
-    $ext = 'png';
-    if (preg_match('/data:image\/([a-zA-Z0-9]+)/', $meta, $m)) {
-        $ext = $m[1];
+        $ext = explode('/', $mime)[1] ?? 'png';
         if ($ext === 'jpeg') $ext = 'jpg';
+    } else {
+        $ext = 'png';
     }
 
-    $filename = $doctype . "_" . uniqid() . "." . $ext;
-    $folder = "uploads/person/{$nik}/documents/";
-    if (!is_dir($folder)) mkdir($folder, 0777, true);
+    $filename = "{$doctype}_" . uniqid() . ".{$ext}";
+    $path = "person/{$nik}/documents";
 
-    $file_path = $folder . $filename;
-    file_put_contents($file_path, $image_bin);
+    $upload = $fu->upload($base64, $filename, $path, true, true);
 
-    $stmt = $db->prepare("INSERT INTO document (nik, filename, extension, type, description, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $file_path = $upload->path;
     $desc = strtoupper($doctype) . " document";
+
+    $stmt = $db->prepare("
+        INSERT INTO document (nik, filename, extension, type, description, file_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+    ");
     $stmt->bind_param("ssssss", $nik, $filename, $ext, $doctype, $desc, $file_path);
     $stmt->execute();
     $stmt->close();
@@ -176,35 +169,28 @@ function saveBase64DocumentToTable(string $base64, string $nik, string $doctype,
 
 function saveBase64PhotoToTableWithDesc(string $base64, string $nik, string $type, string $desc, $db)
 {
+    global $fu; 
+
     if (empty($base64)) return null;
 
-    if (strpos($base64, 'base64,') !== false) {
-        $parts = explode(';base64,', $base64);
-        $meta = $parts[0];
-        $data = $parts[1];
+    if (preg_match('/^data:image\/(\w+);base64,/', $base64, $matches)) {
+        $ext = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
+        $base64 = substr($base64, strpos($base64, ',') + 1);
     } else {
-        $data = $base64;
-        $meta = 'data:image/png';
+        $ext = 'png';
     }
 
-    $image_bin = base64_decode($data);
-    if ($image_bin === false) return null;
+    $filename = "{$type}_" . uniqid() . ".{$ext}";
+    $path = "person/{$nik}/photos";
 
-    $ext = 'png';
-    if (preg_match('/data:image\/([a-zA-Z0-9]+)/', $meta, $m)) {
-        $ext = $m[1];
-        if ($ext === 'jpeg') $ext = 'jpg';
-    }
+    $upload = $fu->upload($base64, $filename, $path, true, true);
 
-    $filename = $type . "_" . uniqid() . "." . $ext;
-    $folder = "uploads/person/{$nik}/photos/";
-    if (!is_dir($folder)) mkdir($folder, 0777, true);
+    $file_path = $upload->path;
 
-    $file_path = $folder . $filename;
-    file_put_contents($file_path, $image_bin);
-
-    $stmt = $db->prepare("INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
-                          VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $stmt = $db->prepare("
+        INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+    ");
     $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $file_path);
     $stmt->execute();
     $stmt->close();
