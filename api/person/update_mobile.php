@@ -1,12 +1,12 @@
 <?php
-require_once(dirname(__FILE__)."/../../src/utils/Helper.php");
-require_once(dirname(__FILE__)."/../_api_header.php");
-require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/FileUploadModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/DocumentModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/PhotoModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/QueueModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/FaceModel.php");
+require_once(dirname(__FILE__) . "/../../src/utils/Helper.php");
+require_once(dirname(__FILE__) . "/../_api_header.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/PersonModel.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/FileUploadModel.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/DocumentModel.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/PhotoModel.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/QueueModel.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/FaceModel.php");
 
 use biometric\src\core\models\PersonModel;
 use biometric\src\core\models\FileUploadModel;
@@ -16,116 +16,160 @@ use biometric\src\core\models\QueueModel;
 use biometric\src\core\utils\Helper;
 use biometric\src\core\models\FaceModel;
 
-if(empty($_POST['nik']) || empty($_POST['sk_number'])){
+$rawBody = file_get_contents('php://input');
+$input = json_decode($rawBody, true);
+
+if (empty($input['nik']) || empty($input['sk_number'])) {
     http_response_code(400);
-    echo 'Missing NIK or sk_number';
+    echo json_encode(['status' => 'error', 'message' => 'Missing NIK or sk_number']);
     exit;
 }
 
-$pm = new PersonModel();
+$pm  = new PersonModel();
+$fu  = new FileUploadModel();
+$dcm = new DocumentModel();
+$phm = new PhotoModel();
+$fm  = new FaceModel();
 
-try{
-    $person = $pm->get($_POST['nik'], $_POST['sk_number']);
-}catch(\Exception $e){
-    if($e->getMessage() != 'Data not found'){
+
+try {
+    $person = $pm->get($input['nik'], $input['sk_number']);
+    $is_update = true;
+} catch (\Exception $e) {
+    if ($e->getMessage() !== 'Data not found') {
         http_response_code(500);
-        echo $e->getMessage();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
     }
+    $person = new \stdClass();
+    $person->nik       = $input['nik'];
+    $person->sk_number = $input['sk_number'];
+    $is_update = false;
 }
 
-if(!empty($_POST['luas_tanah']) && $person->luas_tanah !== $_POST['luas_tanah']){
-    $person->luas_tanah = floatval($_POST['luas_tanah']);
-}
-if(!empty($_POST['luas_bangunan']) && $person->luas_bangunan !== $_POST['luas_bangunan']){
-    $person->luas_bangunan = floatval($_POST['luas_bangunan']);
+
+$fields = ['name', 'address', 'familycard_no', 'village', 'phone', 'luas_tanah', 'luas_bangunan'];
+
+foreach ($fields as $field) {
+    if (isset($input[$field]) && $input[$field] !== '' && $input[$field] !== null) {
+        $person->$field = $input[$field];
+    }
 }
 
-$fu = new FileUploadModel();
-$dcm = new DocumentModel();
 
-if(!empty($_POST['photo_ktp'])){
-    $filedata = $fu->upload($_POST['photo_ktp'], 'KTP_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
-    try{
-        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'KTP', null, $filedata->extension);
-    }catch(\mysqli_sql_exception $e){
-        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-            throw $e;
-        }
-    }
-}
-if(!empty($_POST['photo_kk'])){
-    $filedata = $fu->upload($_POST['photo_kk'], 'KK_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
-    try{
-        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'KK', null, $filedata->extension);
-    }catch(\mysqli_sql_exception $e){
-        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-            throw $e;
-        }
-    }
-}
-if(!empty($_POST['photo_profile'])){
-    $filedata = $fu->upload($_POST['photo_profile'], $_POST['nik'].'.jpeg', 'person/'.$_POST['nik'].'/', true, true);
+function replacePhoto($fu, $model, $nik, $base64, $filename, $path, $type)
+{
+    if (empty($base64)) return;
 
-    $phm = new PhotoModel();
-    try{
-        $phm->add($_POST['nik'], $filedata->filename, $filedata->path, PhotoModel::PHOTO_TYPE_BIOMETRIC, null, $filedata->extension);
-    }catch(\mysqli_sql_exception $e){
-        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-            throw $e;
-        }
+    $filedata = $fu->upload($base64, $filename, $path, true, true);
+
+    if (method_exists($model, 'deleteByType')) {
+        $model->deleteByType($nik, $type);
     }
-}
-if(!empty($_POST['face_encoding'])){
-    $fm = new FaceModel();
-    $encoding = json_encode($_POST['face_encoding']);
-    $fm->enroll($_POST['nik'], 'NIK', $encoding);
+
+    $model->add($nik, $filedata->filename, $filedata->path, $type, null, $filedata->extension);
 }
 
-// beneficiaries
-if(!empty($_POST['beneficiary_nik'])){
-    $person->beneficiary_nik = $_POST['beneficiary_nik'];
+if (!empty($input['photo_profile'])) {
+    replacePhoto(
+        $fu,
+        $phm,
+        $input['nik'],
+        $input['photo_profile'],
+        $input['nik'] . '.jpeg',
+        'person/' . $input['nik'] . '/',
+        PhotoModel::PHOTO_TYPE_BIOMETRIC
+    );
 }
-if(!empty($_POST['beneficiary_familycard_no'])){
-    $person->beneficiary_familycard_no = $_POST['beneficiary_familycard_no'];
+
+if (!empty($input['photo_ktp'])) {
+    replacePhoto(
+        $fu,
+        $dcm,
+        $input['nik'],
+        $input['photo_ktp'],
+        'KTP_' . $input['nik'] . '.jpeg',
+        'person/' . $input['nik'] . '/documents/',
+        'KTP'
+    );
 }
-if(!empty($_POST['beneficiary_name'])){
-    $person->beneficiary_name = $_POST['beneficiary_name'];
+
+if (!empty($input['photo_kk'])) {
+    replacePhoto(
+        $fu,
+        $dcm,
+        $input['nik'],
+        $input['photo_kk'],
+        'KK_' . $input['nik'] . '.jpeg',
+        'person/' . $input['nik'] . '/documents/',
+        'KK'
+    );
 }
-if(!empty($_POST['beneficiary_address'])){
-    $person->beneficiary_address = $_POST['beneficiary_address'];
-}
-if(!empty($_POST['beneficiary_photo_ktp'])){
-    $filedata = $fu->upload($_POST['beneficiary_photo_ktp'], 'KTP_BEN_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
-    try{
-        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'KTP-BEN', null, $filedata->extension);
-    }catch(\mysqli_sql_exception $e){
-        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-            throw $e;
-        }
-    }
-}
-if(!empty($_POST['beneficiary_photo_kk'])){
-    $filedata = $fu->upload($_POST['beneficiary_photo_kk'], 'KK_BEN_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
-    try{
-        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'KK-BEN', null, $filedata->extension);
-    }catch(\mysqli_sql_exception $e){
-        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-            throw $e;
-        }
-    }
-}
-if(!empty($_POST['beneficiary_poa'])){
-    $filedata = $fu->upload($_POST['beneficiary_poa'], 'POA_BEN_'.$_POST['nik'].'.jpeg', "person/".$_POST['nik']."/documents/", true, true);
-    try{
-        $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, 'POA-BEN', null, $filedata->extension);
-    }catch(\mysqli_sql_exception $e){
-        if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-            throw $e;
+
+if (!empty($input['photos']) && is_array($input['photos'])) {
+    foreach ($input['photos'] as $index => $base64) {
+        if (!empty($base64)) {
+            $filedata = $fu->upload(
+                $base64,
+                $input['nik'] . "_documentation_" . time() . "_{$index}.jpeg",
+                'person/' . $input['nik'] . '/photos/',
+                true,
+                true
+            );
+            $phm->add(
+                $input['nik'],
+                $filedata->filename,
+                $filedata->path,
+                'documentation',
+                null,
+                $filedata->extension
+            );
         }
     }
 }
 
-$pm->update_mobile($person, $_POST['sk_number']);
+// ==========================
+// 5️⃣ Replace face_encoding (timpa lama)
+// ==========================
+if (!empty($input['face_encoding']) && is_array($input['face_encoding'])) {
+    $encoding_json = json_encode($input['face_encoding'], JSON_UNESCAPED_SLASHES);
 
-echo json_encode(['status' => 'success']);
+    try {
+        // Hapus lama
+        $fm->delete($input['nik'], FaceModel::ID_TYPE_NIK);
+    } catch (\Exception $e) {
+        // abaikan jika belum ada
+    }
+
+    try {
+        // Tambah baru
+        $fm->enroll($input['nik'], FaceModel::ID_TYPE_NIK, $encoding_json);
+    } catch (\Exception $e) {
+        error_log("Face enroll failed for {$input['nik']}: " . $e->getMessage());
+    }
+}
+
+// ==========================
+// 6️⃣ Simpan person data
+// ==========================
+try {
+    if ($is_update) {
+        // Jika sudah ada, update data saja
+        $pm->update_mobile($person, $input['sk_number']);
+        $msg = 'Person updated successfully';
+    } else {
+        // Jika belum ada, kita juga update saja (tidak create baru)
+        $pm->update_mobile($person, $input['sk_number']);
+        $msg = 'Person updated (created implicitly)';
+    }
+} catch (\Exception $e) {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    exit;
+}
+
+
+// ==========================
+// ✅ Selesai
+// ==========================
+echo json_encode(['status' => 'success', 'message' => $msg]);

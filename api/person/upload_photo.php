@@ -1,80 +1,88 @@
 <?php
-require_once(dirname(__FILE__)."/../../src/utils/Helper.php");
-require_once(dirname(__FILE__)."/../_api_header.php");
-require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/FileUploadModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/DocumentModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/PhotoModel.php");
-require_once(dirname(__FILE__)."/../../src/core/models/QueueModel.php");
+require_once(dirname(__FILE__) . "/../../src/utils/Helper.php");
+require_once(dirname(__FILE__) . "/../_api_header.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/FileUploadModel.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/PhotoModel.php");
 
-use biometric\src\core\models\PersonModel;
 use biometric\src\core\models\FileUploadModel;
-use biometric\src\core\models\DocumentModel;
 use biometric\src\core\models\PhotoModel;
-use biometric\src\core\models\QueueModel;
 use biometric\src\core\utils\Helper;
 
-if(empty($_POST['nik'])){
+// Ambil data JSON dari request body
+$raw = file_get_contents("php://input");
+$input = json_decode($raw, true);
+
+// Fallback jika user kirim pakai form-urlencoded
+if (!$input && !empty($_POST)) {
+    $input = $_POST;
+}
+
+if (empty($input['nik'])) {
     http_response_code(400);
-    echo 'Missing NIK';
+    echo json_encode(["status" => "error", "message" => "Missing NIK"]);
     exit;
 }
 
-$is_base64 = false;
-if(!empty($_POST['is_base64']) && filter_var($_POST['is_base64'], FILTER_VALIDATE_BOOLEAN) == true){
-    $is_base64 = true;
-}
-
-if(!$is_base64 && empty($_FILES['photo'])){
+if (empty($input['photo'])) {
     http_response_code(400);
-    echo 'Missing Photo File';
+    echo json_encode(["status" => "error", "message" => "Missing photo"]);
     exit;
 }
 
-$photoType = PhotoModel::PHOTO_TYPE_BIOMETRIC;
-if(!empty($_POST['photo_type'])){
-    $photoType = $_POST['photo_type'];
+$nik         = $input['nik'];
+$desc        = $input['description'] ?? null;
+$filename    = $input['filename'] ?? ("Dokumentasi-RA-" . date("d-m-Y-His") . rand(100, 999) . ".jpeg");
+$is_base64   = filter_var($input['is_base64'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
+$latitude  = $input['latitude'] ?? null;
+$longitude = $input['longitude'] ?? null;
+
+$latlong = null;
+if (!empty($latitude) && !empty($longitude)) {
+    $latlong = "{$latitude},{$longitude}";
 }
 
-$desc = null;
-if(!empty($_POST['description'])){
-    $desc = $_POST['description'];
-}
+// Selalu pakai documentation type
+$photoType   = PhotoModel::PHOTO_TYPE_DOCUMENTATION;
 
-$filename = null;
-$targetPath = 'person/'.$_POST['nik'];
-if($photoType == PhotoModel::PHOTO_TYPE_BIOMETRIC){
-    $filename = $_POST['nik'].'.jpeg';
-}else if($photoType == PhotoModel::PHOTO_TYPE_DOCUMENTATION){
-    $targetPath = $targetPath.'/photos';
-}else{
-    $targetPath = $targetPath.'/photos';
-}
-// else{
-//     http_response_code(400);
-//     echo 'Valid "photo_type" is either "'.PhotoModel::PHOTO_TYPE_BIOMETRIC.'" or "'.PhotoModel::PHOTO_TYPE_DOCUMENTATION.'"';
-//     exit;
-// }
+// Target path
+$targetPath  = "person/$nik/photos/";
 
-if(!empty($_POST['filename'])){
-    $filename = $_POST['filename'];
-}
+// Dapatkan data foto
+$photoData = $input['photo'];
 
-$files = null;
-if(!$is_base64){
-    $files = $_FILES["photo"];
-}else{
-    $files = $_POST["photo"];
-}
+// Upload file base64
+try {
+    $fu = new FileUploadModel();
+    $filedata = $fu->upload($photoData, $filename, $targetPath, true, $is_base64);
 
-$fu = new FileUploadModel();
-$filedata = $fu->upload($files, $filename, "$targetPath/", true, $is_base64);
+    $phm = new PhotoModel();
+    $phm->add(
+        $nik,
+        $filedata->filename,
+        $filedata->path,
+        $photoType,
+        $desc,
+        $filedata->extension,
+        $latlong
+    );
 
-$phm = new PhotoModel();    
-try{
-    $phm->add($_POST['nik'], $filedata->filename, $filedata->path, $photoType, $desc, $filedata->extension);
-}catch(\mysqli_sql_exception $e){
-    if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
-        throw $e;
-    }
+    echo json_encode([
+        "status" => "success",
+        "message" => "Photo uploaded successfully",
+        "data" => [
+            "nik" => $nik,
+            "filename" => $filedata->filename,
+            "path" => $filedata->path,
+            "type" => $photoType,
+            "description" => $desc,
+            "latlong" => $latlong
+        ]
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => $e->getMessage()
+    ]);
 }
