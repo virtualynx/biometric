@@ -326,9 +326,9 @@ class PersonModel extends Database
         if ($biometricStatus->photo != 'completed') {
             return 'Belum melakukan foto wajah';
         }
-        if ($biometricStatus->fingerprint != 'completed' && $biometricStatus->face != 'completed') {
-            return 'Belum melakukan rekam fingerprint maupun rekam wajah';
-        }
+        // if ($biometricStatus->fingerprint != 'completed' && $biometricStatus->face != 'completed') {
+        //     return 'Belum melakukan rekam fingerprint maupun rekam wajah';
+        // }
 
         //auto-generate REG, DOC-VERIFY for already existing KTP and KK
         try {
