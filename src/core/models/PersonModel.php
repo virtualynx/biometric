@@ -5,6 +5,7 @@ namespace biometric\src\core\models;
 use biometric\src\core\Database;
 use biometric\src\core\Fingerprint;
 use biometric\src\core\utils\Helper;
+use PDO;
 use stdClass;
 
 require_once(dirname(__FILE__) . "/../Database.php");
@@ -16,6 +17,8 @@ require_once(dirname(__FILE__) . "/FaceModel.php");
 
 class PersonModel extends Database
 {
+     /** @var \mysqli */
+    private $db;
     private $photoModel;
     private $documentModel;
     private $fileUploadModel;
@@ -26,6 +29,8 @@ class PersonModel extends Database
     public function __construct()
     {
         parent::__construct();
+        $this->db = $this->getConnection();
+
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
         $this->fileUploadModel = new FileUploadModel();
@@ -213,30 +218,48 @@ class PersonModel extends Database
         return $res;
     }
 
-    public function update_mobile(stdClass $person, string $sk_number): bool
-    {
-        $res = $this->execute("
-            update person
-            set
-                name = '$person->name',
-                address = '$person->address',
-                familycard_no = '$person->familycard_no',
-                village = '$person->village',
-                phone = '$person->phone'
-                " . (!empty($person->luas_tanah) ? ", luas_tanah = $person->luas_tanah" : '') . "
-                " . (!empty($person->luas_bangunan) ? ", luas_bangunan = $person->luas_bangunan" : '') . "
-                " . (!empty($person->beneficiary_nik) ? ", beneficiary_nik = '$person->beneficiary_nik'" : '') . "
-                " . (!empty($person->beneficiary_familycard_no) ? ", beneficiary_familycard_no = '$person->beneficiary_familycard_no'" : '') . "
-                " . (!empty($person->beneficiary_name) ? ", beneficiary_name = '$person->beneficiary_name'" : '') . "
-                " . (!empty($person->beneficiary_address) ? ", beneficiary_address = '$person->beneficiary_address'" : '') . "
-                , updated_at = current_timestamp()
-            where
-                nik = '$person->nik'
-                and sk_number = '$sk_number'
-        ");
+public function update_mobile(\stdClass $person, string $sk_number): bool
+{
+    $sql = "
+        UPDATE person SET
+            address = ?,
+            familycard_no = ?,
+            village = ?,
+            phone = ?,
+            luas_tanah = ?,
+            luas_bangunan = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE
+            nik = ?
+            AND sk_number = ?
+    ";
 
-        return $res;
+    $stmt = $this->db->prepare($sql);
+    if (!$stmt) {
+        throw new \Exception("Prepare failed: " . $this->db->error);
     }
+
+    $stmt->bind_param(
+        "ssssssss",
+        $person->address,
+        $person->familycard_no,
+        $person->village,
+        $person->phone,
+        $person->luas_tanah,
+        $person->luas_bangunan,
+        $person->nik,
+        $sk_number
+    );
+
+    $stmt->execute();
+
+    $affected = $stmt->affected_rows;
+    $stmt->close();
+
+    return $affected > 0;
+}
+
+
 
     public function delete(string $nik, string $sk_number)
     {
