@@ -34,7 +34,6 @@ class FileUploadModel
                 throw new \Exception("Database connection invalid or not instance of mysqli.");
             }
 
-            // ✅ Coba ping koneksi
             if (!$this->db->ping()) {
                 throw new \Exception("Database ping failed. Connection lost or never established.");
             }

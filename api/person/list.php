@@ -1,22 +1,33 @@
 <?php
-require_once(dirname(__FILE__)."/../_api_header.php");
-require_once(dirname(__FILE__)."/../../src/core/models/PersonModel.php");
+require_once(dirname(__FILE__) . "/../_api_header.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/PersonModel.php");
 
 use biometric\src\core\models\PersonModel;
 
-$pm = new PersonModel();
+$requestBody = file_get_contents("php://input");
+$json = json_decode($requestBody, true);
 
-$persons = $pm->list();
-$persons_filtered = [];
+$sk_number = null;
 
-if(!empty($_POST['sk_number'])){
-    foreach($persons as $row){
-        if($row->sk_number == $_POST['sk_number']){
-            $persons_filtered []= $row;
-        }
-    }
-}else{
-    $persons_filtered = $persons;
+if (!empty($json['sk_number'])) {
+    $sk_number = $json['sk_number'];
+} elseif (!empty($_POST['sk_number'])) {
+    $sk_number = $_POST['sk_number'];
 }
 
-echo json_encode($persons_filtered);
+try {
+    $pm = new PersonModel();
+    $persons = $pm->list($sk_number);
+
+    echo json_encode([
+        "status" => "success",
+        "count"  => count($persons),
+        "data"   => $persons
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        "status"  => "error",
+        "message" => $e->getMessage()
+    ]);
+}

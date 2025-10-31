@@ -17,7 +17,7 @@ require_once(dirname(__FILE__) . "/FaceModel.php");
 
 class PersonModel extends Database
 {
-     /** @var \mysqli */
+    /** @var \mysqli */
     private $db;
     private $photoModel;
     private $documentModel;
@@ -37,21 +37,35 @@ class PersonModel extends Database
         $this->faceModel = new FaceModel();
     }
 
-    public function list(): array
+    public function list(?string $sk_number = null): array
     {
-        $persons = $this->query("
-            select * 
-            from person 
-            where deleted_at is NULL
-            order by created_at desc");
+        if (!empty($sk_number)) {
+            $stmt = $this->db->prepare("
+            SELECT * 
+            FROM person 
+            WHERE deleted_at IS NULL AND sk_number = ?
+            ORDER BY created_at DESC
+        ");
+            $stmt->bind_param("s", $sk_number);
+        } else {
+            $stmt = $this->db->prepare("
+            SELECT * 
+            FROM person 
+            WHERE deleted_at IS NULL
+            ORDER BY created_at DESC
+        ");
+        }
 
-        $persons = json_decode(json_encode($persons), true);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $persons = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
         foreach ($persons as &$row) {
             $row['biometric_status'] = $this->getBiometricStatus($row['nik']);
             $row['status'] = $this->getOverallStatus($row['nik']);
-
-            unset($row);
         }
+        unset($row);
 
         return json_decode(json_encode($persons));
     }
@@ -218,10 +232,11 @@ class PersonModel extends Database
         return $res;
     }
 
-public function update_mobile(\stdClass $person, string $sk_number): bool
-{
-    $sql = "
+    public function update_mobile(\stdClass $person, string $sk_number): bool
+    {
+        $sql = "
         UPDATE person SET
+        name = ?,
             address = ?,
             familycard_no = ?,
             village = ?,
@@ -234,30 +249,32 @@ public function update_mobile(\stdClass $person, string $sk_number): bool
             AND sk_number = ?
     ";
 
-    $stmt = $this->db->prepare($sql);
-    if (!$stmt) {
-        throw new \Exception("Prepare failed: " . $this->db->error);
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) {
+            throw new \Exception("Prepare failed: " . $this->db->error);
+        }
+        $person->luas_tanah = $person->luas_tanah ?? 0;
+        $person->luas_bangunan = $person->luas_bangunan ?? 0;
+        $stmt->bind_param(
+            "sssssddss",
+            $person->name,
+            $person->address,
+            $person->familycard_no,
+            $person->village,
+            $person->phone,
+            $person->luas_tanah,
+            $person->luas_bangunan,
+            $person->nik,
+            $sk_number
+        );
+
+        $stmt->execute();
+
+        $affected = $stmt->affected_rows;
+        $stmt->close();
+
+        return $affected > 0;
     }
-
-    $stmt->bind_param(
-        "ssssssss",
-        $person->address,
-        $person->familycard_no,
-        $person->village,
-        $person->phone,
-        $person->luas_tanah,
-        $person->luas_bangunan,
-        $person->nik,
-        $sk_number
-    );
-
-    $stmt->execute();
-
-    $affected = $stmt->affected_rows;
-    $stmt->close();
-
-    return $affected > 0;
-}
 
 
 
