@@ -1,36 +1,63 @@
 <?php
+
 namespace biometric\src\core\models;
 
-require_once(dirname(__FILE__)."/EnvFileModel.php");
-require_once(dirname(__FILE__)."/../../utils/Helper.php");
+require_once(dirname(__FILE__) . "/EnvFileModel.php");
+require_once(dirname(__FILE__) . "/../Database.php");
+require_once(dirname(__FILE__) . "/../../utils/Helper.php");
 
+
+use biometric\src\core\Database;
 use biometric\src\core\utils\Helper;
 use SplFileInfo;
 use stdClass;
 
-class FileUploadModel {
+class FileUploadModel
+{
     private $env;
     private $basePath;
     private $uploadDir;
+    private $db;
 
-    public function __construct(){
+    public function __construct()
+    {
         $this->env = new EnvFileModel();
 
-        $this->basePath = dirname(__FILE__).'/../../../';
+        $this->basePath = dirname(__FILE__) . '/../../../';
         $this->uploadDir = Helper::removesTrailingSlash($this->env->get('BIOMETRIC_UPLOAD_DIR'));
+
+        try {
+            $database = new Database();
+            $this->db = $database->getConnection();
+
+            if (!$this->db || !($this->db instanceof \mysqli)) {
+                throw new \Exception("Database connection invalid or not instance of mysqli.");
+            }
+
+            // ✅ Coba ping koneksi
+            if (!$this->db->ping()) {
+                throw new \Exception("Database ping failed. Connection lost or never established.");
+            }
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                "error" => "❌ Failed to connect DB in FileUploadModel: " . $e->getMessage()
+            ]);
+            exit;
+        }
     }
 
     public function upload(
-        $files, 
-        string $filename = null, 
+        $files,
+        string $filename = null,
         string $path = null,
         bool $overwrite = false,
         bool $is_base64 = false
-    ): stdClass{
+    ): stdClass {
         $savePath = $this->uploadDir;
 
-        if(!empty($path)){
-            $savePath = Helper::removesTrailingSlash($savePath.'/'.$path);
+        if (!empty($path)) {
+            $savePath = Helper::removesTrailingSlash($savePath . '/' . $path);
         }
 
         // echo "<b>File to be uploaded: </b>" . $files["name"] . "<br>";
@@ -38,14 +65,14 @@ class FileUploadModel {
         // echo "<b>File Size: </b>" . $files["size"]/1024 . "<br>";
         // echo "<b>Store in: </b>" . $files["tmp_name"] . "<br>";
 
-        $targetPath = $this->basePath.$savePath;
-        if(!file_exists($targetPath)){
+        $targetPath = $this->basePath . $savePath;
+        if (!file_exists($targetPath)) {
             mkdir($targetPath, 0777, true);
         }
 
         $base64decoded = null;
-        if($is_base64){
-            if(empty($filename)){
+        if ($is_base64) {
+            if (empty($filename)) {
                 throw new \Exception('Filename cannot be empty for base64-based file transfer');
             }
 
@@ -59,40 +86,40 @@ class FileUploadModel {
             list(, $extension) = explode('/', $type);
 
             $filenamearr = explode('.', $filename);
-            if($filenamearr[count($filenamearr)-1] != $extension){ //correcting extension
-                $filenamearr[count($filenamearr)-1] = $extension;
+            if ($filenamearr[count($filenamearr) - 1] != $extension) { //correcting extension
+                $filenamearr[count($filenamearr) - 1] = $extension;
                 $filename = implode('.', $filenamearr);
             }
-        }else{
-            if(empty($files)){
+        } else {
+            if (empty($files)) {
                 throw new \Exception('Blob file cannot be empty for base64-based file transfer');
             }
-            if(empty($filename)){
+            if (empty($filename)) {
                 $filename = $files["name"];
             }
-            
+
             $filenameExploded = explode(".", $files["name"]);
             $extension = end($filenameExploded);
         }
 
-        $filePath = $targetPath.'/'.$filename;
+        $filePath = $targetPath . '/' . $filename;
 
         $status = 'success';
 
-        if(file_exists($filePath)){
+        if (file_exists($filePath)) {
             // echo "<h3>The file already exists</h3>";
             // throw new \Exception("File already exists");
-            if($overwrite){
+            if ($overwrite) {
                 unlink($filePath);
-            }else{
+            } else {
                 $status = 'File already exists';
             }
         }
 
-        if($is_base64){
+        if ($is_base64) {
             // file_put_contents($filePath, file_get_contents($files));
             file_put_contents($filePath, $base64decoded);
-        }else{
+        } else {
             move_uploaded_file($files["tmp_name"], $filePath);
         }
         // echo "<h3>File Successfully Uploaded</h3>";
@@ -101,67 +128,139 @@ class FileUploadModel {
             'status' => $status,
             'filename' => $filename,
             'extension' => $extension,
-            'path' => $savePath.'/'.$filename
+            'path' => $savePath . '/' . $filename
         ]));
     }
 
-    public function deleteFile(string $filepath){
-        $targetPath = Helper::removesTrailingSlash($this->basePath.'/'.$filepath);
+    public function deleteFile(string $filepath)
+    {
+        $targetPath = Helper::removesTrailingSlash($this->basePath . '/' . $filepath);
 
         unlink($targetPath);
     }
 
-    public function downloadFile(string $filename, string $filepath){
-        $loadPath = $this->basePath.$filepath;
+    public function downloadFile(string $filename, string $filepath)
+    {
+        $loadPath = $this->basePath . $filepath;
 
-        if(!is_file($loadPath)){
+        if (!is_file($loadPath)) {
             throw new \Exception("File $filepath does not exists");
         }
 
         $ext = strrchr($filename, ".");
         $type = '';
-        switch($ext){
-            case ".zip": $type = "application/zip"; break;
-            case ".txt": $type = "text/plain"; break;
-            case ".pdf": $type = "application/pdf"; break;
-            case('gif') : $type = "image/gif";break;
-            case('pnggif') : $type = "image/png";break;
-            case('jpg') : $type = "image/jpeg";break;
-            default: $type = "application/octet-stream"; break;
+        switch ($ext) {
+            case ".zip":
+                $type = "application/zip";
+                break;
+            case ".txt":
+                $type = "text/plain";
+                break;
+            case ".pdf":
+                $type = "application/pdf";
+                break;
+            case ('gif'):
+                $type = "image/gif";
+                break;
+            case ('pnggif'):
+                $type = "image/png";
+                break;
+            case ('jpg'):
+                $type = "image/jpeg";
+                break;
+            default:
+                $type = "application/octet-stream";
+                break;
         }
 
         header("Content-Description: File Transfer");
         header("Content-Type: $type");
         header("Content-Transfer-Encoding: binary");
         header("Content-disposition: attachment; filename=$filename");
-        header("Content-Length: ".filesize($loadPath));
+        header("Content-Length: " . filesize($loadPath));
 
         echo file_get_contents($loadPath);
     }
 
-    public function getBase64String(string $filename, string $filepath){
-        $loadPath = $this->basePath.$filepath;
+    public function getBase64String(string $filename, string $filepath)
+    {
+        $loadPath = $this->basePath . $filepath;
 
-        if(!is_file($loadPath)){
+        if (!is_file($loadPath)) {
             throw new \Exception("File $filepath does not exists");
         }
 
         $ext = strrchr($filename, ".");
         $type = '';
-        switch($ext){
-            case ".zip": $type = "application/zip"; break;
-            case ".txt": $type = "text/plain"; break;
-            case ".pdf": $type = "application/pdf"; break;
-            case('gif') : $type = "image/gif";break;
-            case('pnggif') : $type = "image/png";break;
-            case('jpg') : $type = "image/jpeg";break;
-            default: $type = "application/octet-stream"; break;
+        switch ($ext) {
+            case ".zip":
+                $type = "application/zip";
+                break;
+            case ".txt":
+                $type = "text/plain";
+                break;
+            case ".pdf":
+                $type = "application/pdf";
+                break;
+            case ('gif'):
+                $type = "image/gif";
+                break;
+            case ('pnggif'):
+                $type = "image/png";
+                break;
+            case ('jpg'):
+                $type = "image/jpeg";
+                break;
+            default:
+                $type = "application/octet-stream";
+                break;
         }
-        
+
         $type = pathinfo($loadPath, PATHINFO_EXTENSION);
         $data = file_get_contents($loadPath);
         $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
 
         return $base64;
+    }
+
+   public function listDocuments($nik)
+{
+    if (!$this->db || !$this->db->ping()) {
+        throw new \Exception("Database connection not available in listDocuments()");
+    }
+
+    $nik = $this->db->real_escape_string($nik);
+    $query = "SELECT nik, filename, type FROM document WHERE nik = '$nik'";
+    $result = $this->db->query($query);
+
+    if (!$result) {
+        throw new \Exception("Query failed: " . $this->db->error);
+    }
+
+    $documents = [];
+    while ($row = $result->fetch_assoc()) {
+        $documents[] = $row;
+    }
+    return $documents;
+}
+
+    public function listPhotos($nik)
+    {
+
+        if (!$this->db || !$this->db->ping()) {
+        throw new \Exception("Database connection not available in listDocuments()");
+    }
+        $nik = $this->db->real_escape_string($nik);
+        $query = "SELECT nik, filename, type FROM photo WHERE nik = '$nik'";
+        $result = $this->db->query($query);
+
+          if (!$result) {
+        throw new \Exception("Query failed: " . $this->db->error);
+    }
+        $photos = [];
+        while ($row = $result->fetch_assoc()) {
+            $photos[] = $row;
+        }
+        return $photos;
     }
 }

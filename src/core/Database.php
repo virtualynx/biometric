@@ -48,9 +48,9 @@ class Database
 
     function __destruct()
     {
-        if (!empty($this->conn)) {
-            $this->conn->close();
-        }
+        // if (!empty($this->conn)) {
+        //     $this->conn->close();
+        // }
     }
 
     function query($query)
