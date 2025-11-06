@@ -12,9 +12,13 @@ class PhotoModel extends Database
     const PHOTO_TYPE_BIOMETRIC = 'biometric';
     const PHOTO_TYPE_DOCUMENTATION = 'documentation';
 
+    /** @var \mysqli */
+    private $db;
+
     public function __construct()
     {
         parent::__construct();
+        $this->db = $this->getConnection();
     }
 
     public function get(string $nik, string $filename = null): array
@@ -62,7 +66,6 @@ class PhotoModel extends Database
 
         $res = false;
         if ($photoType == self::PHOTO_TYPE_BIOMETRIC && !empty($existingBiometric)) {
-            // Update existing biometric photo
             $res = $this->execute("
             UPDATE photo
             SET
@@ -108,5 +111,40 @@ class PhotoModel extends Database
         $res = $this->execute("delete from photo where nik = '$nik' and filename = '$filename'");
 
         return $res;
+    }
+
+    public function query($sql, $params = []): array
+    {
+        $stmt = $this->db->prepare($sql);
+        if ($params && count($params) > 0) {
+            $types = str_repeat('s', count($params));
+            $stmt->bind_param($types, ...$params);
+        }
+
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result === false) {
+            return [];
+        }
+
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        return json_decode(json_encode($rows));
+    }
+
+    public function execQuery($sql, $params = []): bool
+    {
+        $stmt = $this->db->prepare($sql);
+        if ($params && count($params) > 0) {
+            $types = str_repeat('s', count($params));
+            $stmt->bind_param($types, ...$params);
+        }
+
+        $success = $stmt->execute();
+        $stmt->close();
+
+        return $success;
     }
 }

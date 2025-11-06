@@ -519,4 +519,54 @@ class PersonModel extends Database
 
         return $results;
     }
+
+    public function query($sql, $params = []): array
+    {
+        $stmt = $this->db->prepare($sql);
+        if ($params && count($params) > 0) {
+            $types = str_repeat('s', count($params));
+            $stmt->bind_param($types, ...$params);
+        }
+
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result === false) {
+            return [];
+        }
+
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        return json_decode(json_encode($rows));
+    }
+
+    public function execQuery($sql, $params = []): bool
+    {
+        $stmt = $this->db->prepare($sql);
+        if ($params && count($params) > 0) {
+            $types = str_repeat('s', count($params));
+            $stmt->bind_param($types, ...$params);
+        }
+
+        $success = $stmt->execute();
+        $stmt->close();
+
+        return $success;
+    }
+
+    public function beginTransaction()
+    {
+        $this->db->begin_transaction();
+    }
+
+    public function commit()
+    {
+        $this->db->commit();
+    }
+
+    public function rollback()
+    {
+        $this->db->rollback();
+    }
 }

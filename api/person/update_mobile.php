@@ -31,7 +31,6 @@ $dcm = new DocumentModel();
 $phm = new PhotoModel();
 $fm  = new FaceModel();
 
-
 try {
     $person = $pm->get($input['nik'], $input['sk_number']);
     $is_update = true;
@@ -47,6 +46,74 @@ try {
     $is_update = false;
 }
 
+$oldNik = $input['nik'];
+$newNik = isset($input['new_nik']) && !empty($input['new_nik'])
+    ? trim($input['new_nik'])
+    : $oldNik;
+
+if ($newNik !== $oldNik) {
+    if (!preg_match('/^[0-9]{16}$/', $newNik)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Format NIK baru tidak valid (harus 16 digit angka)']);
+        exit;
+    }
+    $check = $pm->exists($newNik);
+    if ($check) {
+        http_response_code(409);
+        echo json_encode(['status' => 'error', 'message' => 'NIK baru sudah digunakan.']);
+        exit;
+    }
+
+    $pm->beginTransaction();
+
+    try {
+        $updateNikSql = "UPDATE person SET nik = ? WHERE nik = ?";
+        $pm->execQuery($updateNikSql, [$newNik, $oldNik]);
+
+        $updateDocSql = "UPDATE document SET nik = ? WHERE nik = ?";
+        $dcm->execQuery($updateDocSql, [$newNik, $oldNik]);
+
+        $updatePhotoSql = "UPDATE photo SET nik = ? WHERE nik = ?";
+        $phm->execQuery($updatePhotoSql, [$newNik, $oldNik]);
+
+        try {
+            $updateFaceSql = "UPDATE face SET nik = ? WHERE nik = ?";
+            $fm->execQuery($updateFaceSql, [$newNik, $oldNik]);
+        } catch (\Exception $e) {
+            error_log("⚠️ Tidak ada data face untuk diupdate: " . $e->getMessage());
+        }
+
+        $updatePathDoc = "UPDATE document SET file_path = REPLACE(file_path, ?, ?) WHERE nik = ?";
+        $dcm->execQuery($updatePathDoc, ["person/$oldNik/", "person/$newNik/", $newNik]);
+
+        $updatePathPhoto = "UPDATE photo SET photo_path = REPLACE(photo_path, ?, ?) WHERE nik = ?";
+        $phm->execQuery($updatePathPhoto, ["person/$oldNik/", "person/$newNik/", $newNik]);
+
+        $pm->commit();
+
+        $oldFolder = dirname(__FILE__, 3) . "/uploads/person/" . $oldNik;
+        $newFolder = dirname(__FILE__, 3) . "/uploads/person/" . $newNik;
+        if (file_exists($oldFolder)) {
+            if (!@rename($oldFolder, $newFolder)) {
+                error_log("⚠️ Gagal rename folder dari {$oldFolder} ke {$newFolder}");
+                // fallback: copy dan hapus lama
+                @mkdir($newFolder, 0777, true);
+                foreach (glob($oldFolder . '/*') as $file) {
+                    @rename($file, $newFolder . '/' . basename($file));
+                }
+                @rmdir($oldFolder);
+            }
+        }
+
+
+        $person->nik = $newNik;
+    } catch (\Exception $e) {
+        $pm->rollback();
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Gagal update NIK: ' . $e->getMessage()]);
+        exit;
+    }
+}
 
 $fields = ['name', 'address', 'familycard_no', 'village', 'phone', 'luas_tanah', 'luas_bangunan'];
 
@@ -56,6 +123,7 @@ foreach ($fields as $field) {
     }
 }
 
+$activeNik = $newNik;
 
 function replacePhoto($fu, $model, $nik, $base64, $filename, $path, $type)
 {
@@ -74,10 +142,10 @@ if (!empty($input['photo_profile'])) {
     replacePhoto(
         $fu,
         $phm,
-        $input['nik'],
+        $activeNik,
         $input['photo_profile'],
-        $input['nik'] . '.jpeg',
-        'person/' . $input['nik'] . '/',
+        $activeNik . '.jpeg',
+        'person/' . $activeNik . '/',
         PhotoModel::PHOTO_TYPE_BIOMETRIC
     );
 }
@@ -86,10 +154,10 @@ if (!empty($input['photo_ktp'])) {
     replacePhoto(
         $fu,
         $dcm,
-        $input['nik'],
+        $activeNik,
         $input['photo_ktp'],
-        'KTP_' . $input['nik'] . '.jpeg',
-        'person/' . $input['nik'] . '/documents/',
+        'KTP_' . $activeNik . '.jpeg',
+        'person/' . $activeNik . '/documents/',
         'KTP'
     );
 }
@@ -98,10 +166,10 @@ if (!empty($input['photo_kk'])) {
     replacePhoto(
         $fu,
         $dcm,
-        $input['nik'],
+        $activeNik,
         $input['photo_kk'],
-        'KK_' . $input['nik'] . '.jpeg',
-        'person/' . $input['nik'] . '/documents/',
+        'KK_' . $activeNik . '.jpeg',
+        'person/' . $activeNik . '/documents/',
         'KK'
     );
 }
@@ -111,13 +179,13 @@ if (!empty($input['photos']) && is_array($input['photos'])) {
         if (!empty($base64)) {
             $filedata = $fu->upload(
                 $base64,
-                $input['nik'] . "_documentation_" . time() . "_{$index}.jpeg",
-                'person/' . $input['nik'] . '/photos/',
+                $activeNik . "_documentation_" . time() . "_{$index}.jpeg",
+                'person/' . $activeNik . '/photos/',
                 true,
                 true
             );
             $phm->add(
-                $input['nik'],
+                $activeNik,
                 $filedata->filename,
                 $filedata->path,
                 'documentation',
@@ -128,37 +196,26 @@ if (!empty($input['photos']) && is_array($input['photos'])) {
     }
 }
 
-// ==========================
-// 5️⃣ Replace face_encoding (timpa lama)
-// ==========================
 if (!empty($input['face_encoding']) && is_array($input['face_encoding'])) {
     $encoding_json = json_encode($input['face_encoding'], JSON_UNESCAPED_SLASHES);
 
     try {
-        // Hapus lama
-        $fm->delete($input['nik'], FaceModel::ID_TYPE_NIK);
+        $fm->delete($activeNik, FaceModel::ID_TYPE_NIK);
     } catch (\Exception $e) {
-        // abaikan jika belum ada
     }
 
     try {
-        // Tambah baru
-        $fm->enroll($input['nik'], FaceModel::ID_TYPE_NIK, $encoding_json);
+        $fm->enroll($activeNik, FaceModel::ID_TYPE_NIK, $encoding_json);
     } catch (\Exception $e) {
         error_log("Face enroll failed for {$input['nik']}: " . $e->getMessage());
     }
 }
 
-// ==========================
-// 6️⃣ Simpan person data
-// ==========================
 try {
     if ($is_update) {
-        // Jika sudah ada, update data saja
         $pm->update_mobile($person, $input['sk_number']);
         $msg = 'Person updated successfully';
     } else {
-        // Jika belum ada, kita juga update saja (tidak create baru)
         $pm->update_mobile($person, $input['sk_number']);
         $msg = 'Person updated (created implicitly)';
     }
@@ -168,8 +225,11 @@ try {
     exit;
 }
 
-
-// ==========================
-// ✅ Selesai
-// ==========================
-echo json_encode(['status' => 'success', 'message' => $msg]);
+echo json_encode([
+    'status' => 'success',
+    'message' => $msg,
+    'data' => [
+        'nik' => $person->nik,
+        'sk_number' => $input['sk_number'],
+    ],
+]);

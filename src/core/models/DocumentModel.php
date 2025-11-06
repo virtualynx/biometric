@@ -1,18 +1,26 @@
 <?php
+
 namespace biometric\src\core\models;
 
 use biometric\src\core\Database;
 
-require_once(dirname(__FILE__)."/../Database.php");
+require_once(dirname(__FILE__) . "/../Database.php");
 
-class DocumentModel extends Database {
+class DocumentModel extends Database
+{
     const DOCUMENT_TYPE_DOCUMENT = 'document';
 
-    public function __construct(){
+    /** @var \mysqli */
+    private $db;
+
+    public function __construct()
+    {
         parent::__construct();
+        $this->db = $this->getConnection();
     }
 
-    public function get(string $nik): array{
+    public function get(string $nik): array
+    {
         $docs = $this->query("
             select 
                 doc.nik,
@@ -42,15 +50,15 @@ class DocumentModel extends Database {
 
         return $docs;
     }
-    
+
     public function add(
-        string $nik, 
-        string $filename, 
-        string $savepath, 
-        string $documentType = self::DOCUMENT_TYPE_DOCUMENT, 
+        string $nik,
+        string $filename,
+        string $savepath,
+        string $documentType = self::DOCUMENT_TYPE_DOCUMENT,
         string $description = null,
         string $extension = null
-    ){
+    ) {
         $res = $this->execute("
             insert into document(
                 nik,
@@ -58,7 +66,7 @@ class DocumentModel extends Database {
                 type,
                 description,
                 file_path
-                ".(!empty($extension)? ",extension": "")."
+                " . (!empty($extension) ? ",extension" : "") . "
             )
             values(
                 '$nik',
@@ -66,10 +74,51 @@ class DocumentModel extends Database {
                 '$documentType',
                 '$description',
                 '$savepath'
-                ".(!empty($extension)? ",'$extension'": "")."
+                " . (!empty($extension) ? ",'$extension'" : "") . "
             )
         ");
 
         return $res;
+    }
+
+    public function query($sql, $params = []): array
+    {
+        $stmt = $this->db->prepare($sql);
+        if ($params && count($params) > 0) {
+            $types = str_repeat('s', count($params));
+            $stmt->bind_param($types, ...$params);
+        }
+
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result === false) {
+            return [];
+        }
+
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        return json_decode(json_encode($rows));
+    }
+
+    public function execQuery($sql, $params = []): bool
+    {
+        $stmt = $this->db->prepare($sql);
+        if ($params && count($params) > 0) {
+            $types = str_repeat('s', count($params));
+            $stmt->bind_param($types, ...$params);
+        }
+
+        $success = $stmt->execute();
+        $stmt->close();
+
+        return $success;
+    }
+
+    public function deleteByType(string $nik, string $type): bool
+    {
+        $sql = "DELETE FROM document WHERE nik = ? AND type = ?";
+        return $this->execQuery($sql, [$nik, $type]);
     }
 }
