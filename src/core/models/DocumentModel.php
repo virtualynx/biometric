@@ -121,4 +121,30 @@ class DocumentModel extends Database
         $sql = "DELETE FROM document WHERE nik = ? AND type = ?";
         return $this->execQuery($sql, [$nik, $type]);
     }
+
+    public function getByNikList(array $nikList)
+    {
+        if (empty($nikList)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($nikList), '?'));
+        $types = str_repeat('s', count($nikList));
+
+        $sql = "
+        SELECT nik, type, file_path
+        FROM document
+        WHERE nik IN ($placeholders)
+    ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param($types, ...$nikList);
+        $stmt->execute();
+
+        $result = $stmt->get_result();
+
+        if ($result === false) return [];
+
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+
+        return $rows;
+    }
 }
