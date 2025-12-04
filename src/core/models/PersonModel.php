@@ -477,48 +477,48 @@ class PersonModel extends Database
     public function getStatusList($nik)
     {
         $res_masters = $this->query("
-            select 
-                ms.id,
-                ms.name,
-                0 as is_done
-            from 
-                master_status ms
-            where
-                ms.disabled = 0
-            order by
-                ms.`order` asc
-        ");
+        SELECT 
+            ms.id,
+            ms.name,
+            ms.`order`,
+            0 AS is_done
+        FROM 
+            master_status ms
+        WHERE
+            ms.disabled = 0
+        ORDER BY
+            ms.`order` ASC
+    ");
 
         $results = json_decode(json_encode($res_masters), true);
 
         $trx_status = $this->query("
-            select 
-                tss.status_id,
-                ms.name,
-                tss.is_done
-            from 
-                trx_subject_status tss
-                join master_status ms on tss.status_id = ms.id
-            where
-                ms.disabled = 0
-                and tss.nik = '$nik'
-            order by
-                ms.`order` asc
-        ");
+        SELECT 
+            tss.status_id,
+            ms.`order`,
+            tss.is_done
+        FROM 
+            trx_subject_status tss
+            JOIN master_status ms ON tss.status_id = ms.id
+        WHERE
+            ms.disabled = 0
+            AND tss.nik = '$nik'
+        ORDER BY
+            ms.`order` ASC
+    ");
 
         foreach ($results as &$row) {
             foreach ($trx_status as $status) {
                 if ($row['id'] == $status->status_id) {
-                    $row['is_done'] = $status->is_done;
+                    $row['is_done'] = intval($status->is_done);
                 }
             }
-
-            $row['is_done'] = intval($row['is_done']);
         }
         unset($row);
 
         return $results;
     }
+
 
     public function query($sql, $params = []): array
     {
