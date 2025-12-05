@@ -344,135 +344,50 @@ class PersonModel extends Database
     public function getOverallStatus($nik)
     {
         $hasKtp = false;
-        $hasKk = false;
-        $docs = $this->documentModel->get($nik);
+        $hasKk  = false;
+        $docs   = $this->documentModel->get($nik);
+
         foreach ($docs as $row) {
-            if ($row->type_id == 'KTP' || $row->type == 'SIM') {
-                $hasKtp = true;
-            }
-            if ($row->type_id == 'KK') {
-                $hasKk = true;
-            }
+            if ($row->type_id == 'KTP' || $row->type == 'SIM')  $hasKtp = true;
+            if ($row->type_id == 'KK')                          $hasKk  = true;
         }
 
-        if (!$hasKtp) {
-            return 'Dokumen KTP belum lengkap';
-        }
-        if (!$hasKk) {
-            return 'Dokumen KK belum lengkap';
+        if (!$hasKtp) return "Dokumen KTP belum lengkap";
+        if (!$hasKk)  return "Dokumen KK belum lengkap";
+
+        $bio = $this->getBiometricStatus($nik);
+        if ($bio->photo != "completed") {
+            return "Belum melakukan foto wajah";
         }
 
-        $biometricStatus = $this->getBiometricStatus($nik);
-        if ($biometricStatus->photo != 'completed') {
-            return 'Belum melakukan foto wajah';
-        }
-        // if ($biometricStatus->fingerprint != 'completed' && $biometricStatus->face != 'completed') {
-        //     return 'Belum melakukan rekam fingerprint maupun rekam wajah';
-        // }
+        $this->execute("
+    INSERT IGNORE INTO trx_subject_status(nik, status_id, is_done)
+    VALUES 
+    ('$nik','REG',1),
+    ('$nik','DOC-VERIFY',1),
+    ('$nik','AGR-DISC',0),
+    ('$nik','SIGN-UTL',0),
+    ('$nik','CERT-ACQ',0)
+");
+        $trx = $this->query("
+        SELECT tss.status_id, ms.name, ms.`order`, tss.is_done
+        FROM trx_subject_status tss
+        JOIN master_status ms ON ms.id = tss.status_id
+        WHERE ms.disabled = 0 AND tss.nik = '$nik'
+        ORDER BY ms.`order` ASC
+    ");
 
-        //auto-generate REG, DOC-VERIFY for already existing KTP and KK
-        try {
-            $res = $this->execute("
-                insert into trx_subject_status(
-                    nik,
-                    status_id,
-                    is_done
-                )
-                select 
-                    '$nik',
-                    id,
-                    1
-                from 
-                    master_status ms
-                where
-                    disabled = 0
-                    and id in ('REG', 'DOC-VERIFY')
-                order by
-                    `order`
-            ");
-        } catch (\Exception $e) {
-            if (!Helper::startsWith($e->getMessage(), 'Duplicate entry')) {
-                throw $e;
-            }
-        }
-        // auto-generate AGR-DISC
-        try {
-            $res = $this->execute("
-                insert into trx_subject_status(
-                    nik,
-                    status_id,
-                    is_done
-                )
-                select 
-                    '$nik',
-                    'AGR-DISC',
-                    0
-            ");
-        } catch (\Exception $e) {
-            if (!Helper::startsWith($e->getMessage(), 'Duplicate entry')) {
-                throw $e;
+        foreach ($trx as $row) {
+            if ($row->is_done == 0) {
+                return $row->name;
             }
         }
 
-        $trxSubjectStatus = $this->query("
-            select 
-                tss.*,
-                ms.name,
-                ms.`order`
-            from 
-                trx_subject_status tss
-                join master_status ms on tss.status_id = ms.id
-            where
-                ms.disabled = 0
-                and tss.nik = '$nik'
-            order by
-                ms.`order` desc
-        ");
-
-        $latestStatus = null;
-        if (!empty($trxSubjectStatus)) {
-            foreach ($trxSubjectStatus as $row) {
-                if ($row->is_done == 1) {
-                    break;
-                }
-                $latestStatus = $row;
-            }
-        }
-
-        //auto-generated status log
-        if (!empty($latestStatus)) {
-            try {
-                $res = $this->execute("
-                    insert into trx_subject_status(
-                        nik,
-                        status_id,
-                        is_done
-                    )
-                    select 
-                        '$nik',
-                        id,
-                        1
-                    from 
-                        master_status ms
-                    where
-                        `order` < $latestStatus->order
-                    order by
-                        `order`
-                ");
-            } catch (\Exception $e) {
-                if (!Helper::startsWith($e->getMessage(), 'Duplicate entry')) {
-                    throw $e;
-                }
-            }
-        }
-
-        if (empty($latestStatus)) {
-            $latestStatus = 'Done';
-            return 'Done';
-        }
-
-        return $latestStatus->name;
+        return "Subjek RA BBT";
     }
+
+
+
 
     public function getStatusList($nik)
     {

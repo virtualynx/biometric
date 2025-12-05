@@ -122,28 +122,45 @@ class DocumentModel extends Database
         return $this->execQuery($sql, [$nik, $type]);
     }
 
-    public function getByNikList(array $nikList)
+    public function getByNikList(array $nikList): array
     {
         if (empty($nikList)) return [];
+
+        if (count($nikList) > 50) {
+            $nikList = array_slice($nikList, 0, 50);
+        }
 
         $placeholders = implode(',', array_fill(0, count($nikList), '?'));
         $types = str_repeat('s', count($nikList));
 
-        $sql = "
-        SELECT nik, type, file_path
-        FROM document
-        WHERE nik IN ($placeholders)
-    ";
+        $sql = "SELECT nik, type, file_path FROM document WHERE nik IN ($placeholders)";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param($types, ...$nikList);
-        $stmt->execute();
+
+        if (!$stmt) {
+            error_log("MYSQL PREPARE FAILED: " . $this->db->error);
+            return [];
+        }
+
+        if (!$stmt->bind_param($types, ...$nikList)) {
+            error_log("MYSQL BIND PARAM FAILED: " . $stmt->error);
+            return [];
+        }
+
+        if (!$stmt->execute()) {
+            error_log("MYSQL EXECUTE FAILED: " . $stmt->error);
+            return [];
+        }
 
         $result = $stmt->get_result();
 
-        if ($result === false) return [];
+        if (!$result) {
+            error_log("MYSQL GET_RESULT FAILED: " . $stmt->error);
+            return [];
+        }
 
         $rows = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
 
         return $rows;
     }
