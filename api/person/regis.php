@@ -8,6 +8,7 @@ require_once(dirname(__FILE__) . "/../../src/core/models/PhotoModel.php");
 require_once(dirname(__FILE__) . "/../../src/core/models/QueueModel.php");
 require_once(dirname(__FILE__) . "/../../src/core/models/FaceModel.php");
 require_once(dirname(__FILE__) . "/../../src/core/Database.php");
+require_once(dirname(__FILE__) . "/../../src/core/models/PotensiModel.php");
 
 use biometric\src\core\Database;
 use biometric\src\core\models\PersonModel;
@@ -17,6 +18,7 @@ use biometric\src\core\models\PhotoModel;
 use biometric\src\core\models\QueueModel;
 use biometric\src\core\models\FaceModel;
 use biometric\src\core\utils\Helper;
+use biometric\src\core\models\PotensiModel;
 
 $raw = file_get_contents("php://input");
 $input = json_decode($raw, true);
@@ -45,52 +47,35 @@ if (empty($input['nik']) || empty($input['sk_number'])) {
 $dbInstance = new Database();
 $db = $dbInstance->getConnection();
 
-$pm = new PersonModel();
+$potensiModel = new PotensiModel();
 
-try {
-    $person = $pm->get($input['nik']);
-} catch (\Exception $e) {
-    if ($e->getMessage() != 'Data not found') {
-        http_response_code(500);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => $e->getMessage()]);
-        exit;
-    }
-}
+$exists = $potensiModel->exists($input['nik']);
 
-if (empty($person)) {
-    $person = json_decode(json_encode([
-        'nik' => $input['nik'],
-        'name' => $input['name'] ?? null,
-        'address' => $input['address'] ?? null,
+if (!$exists) {
+    $potensiModel->add((object)[
+        'nik'           => $input['nik'],
+        'name'          => $input['name'] ?? null,
+        'address'       => $input['address'] ?? null,
         'familycard_no' => $input['familycard_no'] ?? null,
-        'village' => $input['village'] ?? null,
-        'sk_number' => $input['sk_number'] ?? null,
-        'phone' => $input['phone'] ?? null,
-        'luas_tanah' => !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null,
+        'village'       => $input['village'] ?? null,
+        'phone'         => $input['phone'] ?? null,
+        'sk_number'     => $input['sk_number'] ?? null,
+        'luas_tanah'    => !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null,
         'luas_bangunan' => !empty($input['luas_bangunan']) ? floatval($input['luas_bangunan']) : null,
-        'beneficiary_nik' => $input['beneficiary_nik'] ?? null,
-        'beneficiary_familycard_no' => $input['beneficiary_familycard_no'] ?? null,
-        'beneficiary_name' => $input['beneficiary_name'] ?? null,
-        'beneficiary_address' => $input['beneficiary_address'] ?? null
-    ]));
-    $pm->add($person);
+    ]);
 } else {
-    $person->name = $input['name'] ?? $person->name;
-    $person->address = $input['address'] ?? $person->address;
-    $person->familycard_no = $input['familycard_no'] ?? $person->familycard_no;
-    $person->village = $input['village'] ?? $person->village;
-    $person->phone = $input['phone'] ?? $person->phone;
-    $person->sk_number = $input['sk_number'] ?? $person->sk_number;
-    $person->luas_tanah = !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null;
-    $person->luas_bangunan = !empty($input['luas_bangunan']) ? floatval($input['luas_bangunan']) : null;
-    $person->beneficiary_nik = $input['beneficiary_nik'] ?? null;
-    $person->beneficiary_familycard_no = $input['beneficiary_familycard_no'] ?? null;
-    $person->beneficiary_name = $input['beneficiary_name'] ?? null;
-    $person->beneficiary_address = $input['beneficiary_address'] ?? null;
-
-    $pm->update($person);
+    $potensiModel->update((object)[
+        'nik'           => $input['nik'],
+        'name'          => $input['name'] ?? null,
+        'address'       => $input['address'] ?? null,
+        'familycard_no' => $input['familycard_no'] ?? null,
+        'village'       => $input['village'] ?? null,
+        'phone'         => $input['phone'] ?? null,
+        'luas_tanah'    => !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null,
+        'luas_bangunan' => !empty($input['luas_bangunan']) ? floatval($input['luas_bangunan']) : null,
+    ]);
 }
+
 
 $fu = new FileUploadModel();
 $phm = new PhotoModel();
@@ -245,16 +230,11 @@ if (!empty($input['face_encoding']) && is_array($input['face_encoding'])) {
     }
 }
 
-$person_arr = json_decode(json_encode($person), true);
-$qm = new QueueModel();
-$current_queue = $qm->findByNik($person->nik, [QueueModel::STATUS_PENDING, QueueModel::STATUS_PULLED]);
-
-if (empty($current_queue)) {
-    $current_queue = $qm->add('BMT', $person->nik);
-}
-
-$person_arr['queue'] = $current_queue;
-$person = json_decode(json_encode($person_arr));
-
 header('Content-Type: application/json');
-echo json_encode($person);
+echo json_encode([
+    'status' => 'POTENSI',
+    'nik' => $input['nik'],
+    'name'    => $input['name'] ?? null,
+    'message' => 'Data berhasil disimpan sebagai Potensi'
+]);
+exit;

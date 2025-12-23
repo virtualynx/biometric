@@ -79,7 +79,6 @@ class PhotoModel extends Database
                 AND type = '$photoType'
         ");
         } else {
-            // Insert new photo (biometric or documentation)
             $columns = ['nik', 'filename', 'photo_path', 'type', 'description'];
             $values = ["'$nik'", "'$filename'", "'$savepath'", "'$photoType'", "'$description'"];
 
@@ -148,3 +147,5 @@ class PhotoModel extends Database
         return $success;
     }
 }
+
+
