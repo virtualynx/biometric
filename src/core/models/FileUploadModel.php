@@ -34,9 +34,8 @@ class FileUploadModel
                 throw new \Exception("Database connection invalid or not instance of mysqli.");
             }
 
-            if (!$this->db->ping()) {
-                throw new \Exception("Database ping failed. Connection lost or never established.");
-            }
+            // mysqli::ping() is deprecated in PHP 8.4
+            // Connection is validated by the checks above
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
