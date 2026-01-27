@@ -161,7 +161,7 @@ class PersonModel extends Database
         $persons = $this->query("select * from person where nik = '$person->nik'");
 
         if (count($persons) > 0) {
-            throw new \Exception('Data exists');
+            throw new \Exception('Data exists, sudah ada di daftar SK');
         }
 
         $sk_number = empty($person->sk_number) ? "NULL" : "'$person->sk_number'";
