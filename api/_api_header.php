@@ -5,41 +5,66 @@ use biometric\src\core\models\EnvFileModel;
 require_once(dirname(__FILE__)."/../src/core/models/EnvFileModel.php");
 
 function getClientOrigin(){
-    $referer_headers = ['HTTP_ORIGIN', 'HTTP_REFERER', 'REMOTE_ADDR'];
-    $referer = "";
-    foreach($referer_headers as $header){
-        if(isset($_SERVER[$header])){
-            $referer = $_SERVER[$header];
+    if(isset($_SERVER['HTTP_ORIGIN']) && !empty($_SERVER['HTTP_ORIGIN'])){
+        return $_SERVER['HTTP_ORIGIN'];
+    }
+    
+    if(isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])){
+        $parsed = parse_url($_SERVER['HTTP_REFERER']);
+        if(isset($parsed['scheme']) && isset($parsed['host'])){
+            $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+            return $parsed['scheme'] . '://' . $parsed['host'] . $port;
         }
     }
-    if(!empty($referer) && $referer == '::1'){
-        $referer = 'localhost';
-    }
-
-    return $referer;
+    
+    return "";
 }
 
 function generateCorsHeaders(){
     $env = new EnvFileModel();
-    $allowed_domain_raws = explode(",", $env->get('BIOMETRIC_CORS_WHITELIST'));
+    $whitelist_raw = $env->get('BIOMETRIC_CORS_WHITELIST');
+    
+    $whitelist_raw = trim($whitelist_raw, '"\' ');
+    
+    $allowed_domain_raws = explode(",", $whitelist_raw);
     $allowed_domains = [];
     foreach($allowed_domain_raws as $domain){
         $allowed_domains []= trim($domain);
     }
 
-    $referer = getClientOrigin();
+    $origin = getClientOrigin();
     $allow_origin = "";
+    
     if(in_array("*", $allowed_domains)){
         $allow_origin = "*";
-    }else if(in_array($referer, $allowed_domains)){
-        $allow_origin = $referer;
+    } else {
+        foreach($allowed_domains as $allowed){
+            if(strpos($allowed, 'http') === 0){
+                if($origin === $allowed){
+                    $allow_origin = $origin;
+                    break;
+                }
+            } else {
+                $origin_host = parse_url($origin, PHP_URL_HOST);
+                if($origin_host === $allowed){
+                    $allow_origin = $origin;
+                    break;
+                }
+            }
+        }
     }
 
-    header("Access-Control-Allow-Origin: $allow_origin");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Content-Length, Accept-Encoding, Authorization");
+    if(!empty($allow_origin)){
+        header("Access-Control-Allow-Origin: $allow_origin");
+    }
+    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Max-Age: 86400");
+    
     if($_SERVER["REQUEST_METHOD"] == 'OPTIONS') {
-        die();
+        http_response_code(200);
+        exit();
     }
 }
 
