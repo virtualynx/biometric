@@ -164,4 +164,27 @@ class DocumentModel extends Database
 
         return $rows;
     }
+
+    public function getPresenceByNikList(array $nikList): array
+    {
+        if (empty($nikList)) return [];
+
+        if (count($nikList) > 500) {
+            $nikList = array_slice($nikList, 0, 500);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($nikList), '?'));
+
+        $sql = "
+            SELECT
+                nik,
+                MAX(CASE WHEN type IN ('KTP', 'SIM') THEN 1 ELSE 0 END) AS has_ktp,
+                MAX(CASE WHEN type = 'KK' THEN 1 ELSE 0 END) AS has_kk
+            FROM document
+            WHERE nik IN ($placeholders)
+            GROUP BY nik
+        ";
+
+        return $this->query($sql, $nikList);
+    }
 }

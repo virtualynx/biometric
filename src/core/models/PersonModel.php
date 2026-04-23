@@ -70,6 +70,172 @@ class PersonModel extends Database
         return json_decode(json_encode($persons));
     }
 
+    public function listSummary(?string $sk_number = null): array
+    {
+        if (!empty($sk_number)) {
+            $stmt = $this->db->prepare("
+                SELECT *
+                FROM person
+                WHERE deleted_at IS NULL AND sk_number = ?
+                ORDER BY created_at DESC
+            ");
+            $stmt->bind_param("s", $sk_number);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT *
+                FROM person
+                WHERE deleted_at IS NULL
+                ORDER BY created_at DESC
+            ");
+        }
+
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $persons = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        if (empty($persons)) {
+            return [];
+        }
+
+        $nikList = array_values(array_filter(array_map(
+            fn($row) => $row['nik'] ?? null,
+            $persons
+        )));
+
+        $docPresenceRows = $this->documentModel->getPresenceByNikList($nikList);
+        $photoPresenceRows = $this->photoModel->getBiometricPresenceByNikList($nikList);
+        $fingerprintRows = $this->query("
+            SELECT
+                nik,
+                MAX(CASE WHEN hand_side = 'RIGHT' AND finger_type = 'INDEX' THEN 1 ELSE 0 END) AS has_index,
+                MAX(CASE WHEN hand_side = 'RIGHT' AND finger_type = 'THUMB' THEN 1 ELSE 0 END) AS has_thumb
+            FROM fingerprint
+            WHERE nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+            GROUP BY nik
+        ", $nikList);
+        $faceRows = $this->query("
+            SELECT person_id AS nik, 1 AS has_face
+            FROM face
+            WHERE person_id IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+            GROUP BY person_id
+        ", $nikList);
+        $pendingStatusRows = $this->query("
+            SELECT
+                tss.nik,
+                ms.name,
+                ms.`order`
+            FROM trx_subject_status tss
+            JOIN master_status ms ON ms.id = tss.status_id
+            WHERE tss.nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+              AND ms.disabled = 0
+              AND tss.is_done = 0
+            ORDER BY tss.nik ASC, ms.`order` ASC
+        ", $nikList);
+        $trxPresenceRows = $this->query("
+            SELECT nik, COUNT(*) AS total
+            FROM trx_subject_status
+            WHERE nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+            GROUP BY nik
+        ", $nikList);
+
+        $defaultPendingStatus = "Pembacaan Perjanjian";
+        $defaultPendingStatusRow = $this->query("
+            SELECT name
+            FROM master_status
+            WHERE id = 'AGR-DISC' AND disabled = 0
+            LIMIT 1
+        ");
+        if (!empty($defaultPendingStatusRow) && !empty($defaultPendingStatusRow[0]->name)) {
+            $defaultPendingStatus = $defaultPendingStatusRow[0]->name;
+        }
+
+        $docPresenceMap = [];
+        foreach ($docPresenceRows as $row) {
+            $docPresenceMap[$row->nik] = [
+                'has_ktp' => intval($row->has_ktp) === 1,
+                'has_kk' => intval($row->has_kk) === 1,
+            ];
+        }
+
+        $photoPresenceMap = [];
+        foreach ($photoPresenceRows as $row) {
+            $photoPresenceMap[$row->nik] = intval($row->has_biometric_photo) === 1;
+        }
+
+        $fingerprintMap = [];
+        foreach ($fingerprintRows as $row) {
+            $fingerprintMap[$row->nik] = [
+                'has_index' => intval($row->has_index) === 1,
+                'has_thumb' => intval($row->has_thumb) === 1,
+            ];
+        }
+
+        $faceMap = [];
+        foreach ($faceRows as $row) {
+            $faceMap[$row->nik] = true;
+        }
+
+        $pendingStatusMap = [];
+        foreach ($pendingStatusRows as $row) {
+            if (!isset($pendingStatusMap[$row->nik])) {
+                $pendingStatusMap[$row->nik] = $row->name;
+            }
+        }
+
+        $trxPresenceMap = [];
+        foreach ($trxPresenceRows as $row) {
+            $trxPresenceMap[$row->nik] = intval($row->total) > 0;
+        }
+
+        foreach ($persons as &$row) {
+            $nik = $row['nik'];
+            $docFlags = $docPresenceMap[$nik] ?? [
+                'has_ktp' => false,
+                'has_kk' => false,
+            ];
+            $hasPhoto = $photoPresenceMap[$nik] ?? false;
+            $fingerprintFlags = $fingerprintMap[$nik] ?? [
+                'has_index' => false,
+                'has_thumb' => false,
+            ];
+            $hasFace = $faceMap[$nik] ?? false;
+
+            $fingerprintStatus = 'unregistered';
+            if ($fingerprintFlags['has_index'] && $fingerprintFlags['has_thumb']) {
+                $fingerprintStatus = 'completed';
+            } elseif (!$fingerprintFlags['has_index']) {
+                $fingerprintStatus = 'index finger not registered';
+            } elseif (!$fingerprintFlags['has_thumb']) {
+                $fingerprintStatus = 'thumb finger not registered';
+            }
+
+            $row['biometric_status'] = [
+                'photo' => $hasPhoto ? 'completed' : 'unregistered',
+                'fingerprint' => $fingerprintStatus,
+                'face' => $hasFace ? 'completed' : 'unregistered',
+            ];
+            $row['document_flags'] = $docFlags;
+
+            if (!$docFlags['has_ktp']) {
+                $row['status'] = "Dokumen KTP belum lengkap";
+            } elseif (!$docFlags['has_kk']) {
+                $row['status'] = "Dokumen KK belum lengkap";
+            } elseif (!$hasPhoto) {
+                $row['status'] = "Belum melakukan foto wajah";
+            } elseif (!empty($pendingStatusMap[$nik])) {
+                $row['status'] = $pendingStatusMap[$nik];
+            } elseif (!empty($trxPresenceMap[$nik])) {
+                $row['status'] = "Subjek RA BBT";
+            } else {
+                $row['status'] = $defaultPendingStatus;
+            }
+        }
+        unset($row);
+
+        return json_decode(json_encode($persons));
+    }
+
     public function get(string $nik, ?string $sk_number = null): stdClass
     {
         $where_sk = "";

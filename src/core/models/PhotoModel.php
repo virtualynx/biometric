@@ -146,5 +146,24 @@ class PhotoModel extends Database
 
         return $success;
     }
-}
 
+    public function getBiometricPresenceByNikList(array $nikList): array
+    {
+        if (empty($nikList)) return [];
+
+        if (count($nikList) > 500) {
+            $nikList = array_slice($nikList, 0, 500);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($nikList), '?'));
+
+        return $this->query("
+            SELECT
+                nik,
+                MAX(CASE WHEN type = 'biometric' THEN 1 ELSE 0 END) AS has_biometric_photo
+            FROM photo
+            WHERE nik IN ($placeholders)
+            GROUP BY nik
+        ", $nikList);
+    }
+}
