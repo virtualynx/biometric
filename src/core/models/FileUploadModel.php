@@ -47,8 +47,8 @@ class FileUploadModel
 
     public function upload(
         $files,
-        string $filename = null,
-        string $path = null,
+        ?string $filename = null,
+        ?string $path = null,
         bool $overwrite = false,
         bool $is_base64 = false
     ): stdClass {

@@ -56,8 +56,8 @@ class DocumentModel extends Database
         string $filename,
         string $savepath,
         string $documentType = self::DOCUMENT_TYPE_DOCUMENT,
-        string $description = null,
-        string $extension = null
+        ?string $description = null,
+        ?string $extension = null
     ) {
         $res = $this->execute("
             insert into document(

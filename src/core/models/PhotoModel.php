@@ -21,7 +21,7 @@ class PhotoModel extends Database
         $this->db = $this->getConnection();
     }
 
-    public function get(string $nik, string $filename = null): array
+    public function get(string $nik, ?string $filename = null): array
     {
         $where_filename = '';
 
@@ -45,9 +45,9 @@ class PhotoModel extends Database
         string $filename,
         string $savepath,
         string $photoType = self::PHOTO_TYPE_BIOMETRIC,
-        string $description = null,
-        string $extension = null,
-        string $latlong = null
+        ?string $description = null,
+        ?string $extension = null,
+        ?string $latlong = null
     ) {
         $existingBiometric = null;
 
@@ -147,5 +147,4 @@ class PhotoModel extends Database
         return $success;
     }
 }
-
 

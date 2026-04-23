@@ -70,7 +70,7 @@ class PersonModel extends Database
         return json_decode(json_encode($persons));
     }
 
-    public function get(string $nik, string $sk_number = null): stdClass
+    public function get(string $nik, ?string $sk_number = null): stdClass
     {
         $where_sk = "";
         if (!empty($sk_number)) {

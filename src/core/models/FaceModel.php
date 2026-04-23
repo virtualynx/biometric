@@ -22,7 +22,6 @@ class FaceModel extends Database
         $this->db = $this->getConnection();
     }
 
-
     public function get(string $person_id): array
     {
         $faces = $this->query("
