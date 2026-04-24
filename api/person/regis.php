@@ -48,32 +48,32 @@ $dbInstance = new Database();
 $db = $dbInstance->getConnection();
 
 $potensiModel = new PotensiModel();
+$hasExistingNikInPotensi = $potensiModel->exists($input['nik']);
 
-$exists = $potensiModel->exists($input['nik']);
+$potensiData = (object)[
+    'nik'           => $input['nik'],
+    'name'          => $input['name'] ?? null,
+    'address'       => $input['address'] ?? null,
+    'familycard_no' => $input['familycard_no'] ?? null,
+    'village'       => $input['village'] ?? null,
+    'phone'         => $input['phone'] ?? null,
+    'sk_number'     => $input['sk_number'] ?? null,
+    'luas_tanah'    => !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null,
+    'luas_bangunan' => !empty($input['luas_bangunan']) ? floatval($input['luas_bangunan']) : null,
+];
 
-if (!$exists) {
-    $potensiModel->add((object)[
-        'nik'           => $input['nik'],
-        'name'          => $input['name'] ?? null,
-        'address'       => $input['address'] ?? null,
-        'familycard_no' => $input['familycard_no'] ?? null,
-        'village'       => $input['village'] ?? null,
-        'phone'         => $input['phone'] ?? null,
-        'sk_number'     => $input['sk_number'] ?? null,
-        'luas_tanah'    => !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null,
-        'luas_bangunan' => !empty($input['luas_bangunan']) ? floatval($input['luas_bangunan']) : null,
+$potensiSaved = $potensiModel->add($potensiData);
+
+if (!$potensiSaved) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'ERROR',
+        'error' => 'Data gagal disimpan sebagai Potensi',
+        'nik' => $input['nik'],
+        'sk_number' => $input['sk_number'],
     ]);
-} else {
-    $potensiModel->update((object)[
-        'nik'           => $input['nik'],
-        'name'          => $input['name'] ?? null,
-        'address'       => $input['address'] ?? null,
-        'familycard_no' => $input['familycard_no'] ?? null,
-        'village'       => $input['village'] ?? null,
-        'phone'         => $input['phone'] ?? null,
-        'luas_tanah'    => !empty($input['luas_tanah']) ? floatval($input['luas_tanah']) : null,
-        'luas_bangunan' => !empty($input['luas_bangunan']) ? floatval($input['luas_bangunan']) : null,
-    ]);
+    exit;
 }
 
 
@@ -235,6 +235,9 @@ echo json_encode([
     'status' => 'POTENSI',
     'nik' => $input['nik'],
     'name'    => $input['name'] ?? null,
-    'message' => 'Data berhasil disimpan sebagai Potensi'
+    'duplicate_nik' => $hasExistingNikInPotensi,
+    'message' => $hasExistingNikInPotensi
+        ? 'Data berhasil disimpan sebagai Potensi. NIK ini sudah ada sebelumnya, pastikan kamu memperbaharuinya.'
+        : 'Data berhasil disimpan sebagai Potensi'
 ]);
 exit;

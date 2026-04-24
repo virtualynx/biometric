@@ -34,7 +34,17 @@ $fu = new FileUploadModel();
 
 // if($isBase64String){
 if(!empty($_GET['is_base64']) && filter_var($_GET['is_base64'], FILTER_VALIDATE_BOOLEAN) == true){
-    echo $fu->getBase64String($_GET['filename'], $file->file_path);
+    try{
+        echo $fu->getBase64String($_GET['filename'], $file->file_path);
+    }catch(\Exception $e){
+        http_response_code(404);
+        echo 'File not found';
+    }
 }else{
-    $fu->downloadFile($_GET['filename'], $file->file_path);
+    try{
+        $fu->downloadFile($_GET['filename'], $file->file_path);
+    }catch(\Exception $e){
+        http_response_code(404);
+        echo 'File not found';
+    }
 }

@@ -19,6 +19,13 @@ class DocumentModel extends Database
         $this->db = $this->getConnection();
     }
 
+    private function fileExists(string $relativePath): bool
+    {
+        $absolutePath = dirname(__FILE__) . '/../../../' . ltrim($relativePath, '/');
+
+        return is_file($absolutePath);
+    }
+
     public function get(string $nik): array
     {
         $docs = $this->query("
@@ -178,13 +185,37 @@ class DocumentModel extends Database
         $sql = "
             SELECT
                 nik,
-                MAX(CASE WHEN type IN ('KTP', 'SIM') THEN 1 ELSE 0 END) AS has_ktp,
-                MAX(CASE WHEN type = 'KK' THEN 1 ELSE 0 END) AS has_kk
+                type,
+                file_path
             FROM document
             WHERE nik IN ($placeholders)
-            GROUP BY nik
         ";
 
-        return $this->query($sql, $nikList);
+        $rows = $this->query($sql, $nikList);
+        $presenceMap = [];
+
+        foreach ($rows as $row) {
+            if (empty($row->nik) || empty($row->file_path) || !$this->fileExists($row->file_path)) {
+                continue;
+            }
+
+            if (!isset($presenceMap[$row->nik])) {
+                $presenceMap[$row->nik] = [
+                    'nik' => $row->nik,
+                    'has_ktp' => 0,
+                    'has_kk' => 0,
+                ];
+            }
+
+            if (in_array($row->type, ['KTP', 'SIM'], true)) {
+                $presenceMap[$row->nik]['has_ktp'] = 1;
+            }
+
+            if ($row->type === 'KK') {
+                $presenceMap[$row->nik]['has_kk'] = 1;
+            }
+        }
+
+        return json_decode(json_encode(array_values($presenceMap)));
     }
 }

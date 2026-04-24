@@ -137,6 +137,13 @@ class FileUploadModel
         unlink($targetPath);
     }
 
+    public function fileExists(string $filepath): bool
+    {
+        $loadPath = $this->basePath . ltrim($filepath, '/');
+
+        return is_file($loadPath);
+    }
+
     public function downloadFile(string $filename, string $filepath)
     {
         $loadPath = $this->basePath . $filepath;
@@ -223,12 +230,12 @@ class FileUploadModel
 
    public function listDocuments($nik)
 {
-    if (!$this->db || !$this->db->ping()) {
+    if (!$this->db || !($this->db instanceof \mysqli)) {
         throw new \Exception("Database connection not available in listDocuments()");
     }
 
     $nik = $this->db->real_escape_string($nik);
-    $query = "SELECT nik, filename, type FROM document WHERE nik = '$nik'";
+    $query = "SELECT nik, filename, type, file_path FROM document WHERE nik = '$nik'";
     $result = $this->db->query($query);
 
     if (!$result) {
@@ -245,11 +252,11 @@ class FileUploadModel
     public function listPhotos($nik)
     {
 
-        if (!$this->db || !$this->db->ping()) {
+        if (!$this->db || !($this->db instanceof \mysqli)) {
         throw new \Exception("Database connection not available in listDocuments()");
     }
         $nik = $this->db->real_escape_string($nik);
-        $query = "SELECT nik, filename, type FROM photo WHERE nik = '$nik'";
+        $query = "SELECT nik, filename, type, photo_path FROM photo WHERE nik = '$nik'";
         $result = $this->db->query($query);
 
           if (!$result) {

@@ -17,6 +17,8 @@ require_once(dirname(__FILE__) . "/FaceModel.php");
 
 class PotensiModel extends Database
 {
+    private static $schemaChecked = false;
+
     /** @var \mysqli */
     private $db;
     private $photoModel;
@@ -31,6 +33,34 @@ class PotensiModel extends Database
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
         $this->faceModel = new FaceModel();
+        $this->ensureDuplicateNikAllowed();
+    }
+
+    private function ensureDuplicateNikAllowed(): void
+    {
+        if (self::$schemaChecked) {
+            return;
+        }
+
+        self::$schemaChecked = true;
+
+        try {
+            $stmt = $this->db->prepare("
+                SHOW INDEX FROM potensi
+                WHERE Key_name = 'uniq_potensi_nik'
+                  AND Non_unique = 0
+            ");
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $hasLegacyUniqueNik = $result && $result->num_rows > 0;
+            $stmt->close();
+
+            if ($hasLegacyUniqueNik) {
+                $this->db->query("ALTER TABLE potensi DROP INDEX uniq_potensi_nik");
+            }
+        } catch (\Throwable $e) {
+            error_log("Unable to relax potensi NIK uniqueness: " . $e->getMessage());
+        }
     }
 
     public function list(?string $sk_number = null): array
@@ -168,15 +198,27 @@ class PotensiModel extends Database
         return "Siap didaftarkan ke SK";
     }
 
-    public function exists(string $nik): bool
+    public function exists(string $nik, ?string $sk_number = null): bool
     {
-        $stmt = $this->db->prepare("
-            SELECT 1 FROM potensi
-            WHERE nik = ?
-              AND deleted_at IS NULL
-            LIMIT 1
-        ");
-        $stmt->bind_param("s", $nik);
+        if (!empty($sk_number)) {
+            $stmt = $this->db->prepare("
+                SELECT 1 FROM potensi
+                WHERE nik = ?
+                  AND sk_number = ?
+                  AND deleted_at IS NULL
+                LIMIT 1
+            ");
+            $stmt->bind_param("ss", $nik, $sk_number);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT 1 FROM potensi
+                WHERE nik = ?
+                  AND deleted_at IS NULL
+                LIMIT 1
+            ");
+            $stmt->bind_param("s", $nik);
+        }
+
         $stmt->execute();
         $stmt->store_result();
 
@@ -244,6 +286,42 @@ class PotensiModel extends Database
             $data->luas_tanah,
             $data->luas_bangunan,
             $data->nik
+        );
+
+        $res = $stmt->execute();
+        $stmt->close();
+
+        return $res;
+    }
+
+    public function updateById(stdClass $data): bool
+    {
+        $stmt = $this->db->prepare("
+            UPDATE potensi SET
+                nik = ?,
+                name = ?,
+                address = ?,
+                familycard_no = ?,
+                village = ?,
+                phone = ?,
+                luas_tanah = ?,
+                luas_bangunan = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND deleted_at IS NULL
+        ");
+
+        $stmt->bind_param(
+            "ssssssddi",
+            $data->nik,
+            $data->name,
+            $data->address,
+            $data->familycard_no,
+            $data->village,
+            $data->phone,
+            $data->luas_tanah,
+            $data->luas_bangunan,
+            $data->id
         );
 
         $res = $stmt->execute();

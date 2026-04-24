@@ -21,6 +21,13 @@ class PhotoModel extends Database
         $this->db = $this->getConnection();
     }
 
+    private function fileExists(string $relativePath): bool
+    {
+        $absolutePath = dirname(__FILE__) . '/../../../' . ltrim($relativePath, '/');
+
+        return is_file($absolutePath);
+    }
+
     public function get(string $nik, ?string $filename = null): array
     {
         $where_filename = '';
@@ -157,13 +164,33 @@ class PhotoModel extends Database
 
         $placeholders = implode(',', array_fill(0, count($nikList), '?'));
 
-        return $this->query("
+        $rows = $this->query("
             SELECT
                 nik,
-                MAX(CASE WHEN type = 'biometric' THEN 1 ELSE 0 END) AS has_biometric_photo
+                type,
+                photo_path
             FROM photo
             WHERE nik IN ($placeholders)
-            GROUP BY nik
         ", $nikList);
+
+        $presenceMap = [];
+
+        foreach ($rows as $row) {
+            if (
+                empty($row->nik) ||
+                $row->type !== 'biometric' ||
+                empty($row->photo_path) ||
+                !$this->fileExists($row->photo_path)
+            ) {
+                continue;
+            }
+
+            $presenceMap[$row->nik] = [
+                'nik' => $row->nik,
+                'has_biometric_photo' => 1,
+            ];
+        }
+
+        return json_decode(json_encode(array_values($presenceMap)));
     }
 }

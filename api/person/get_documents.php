@@ -18,6 +18,10 @@ try {
 
     $filteredDocuments = [];
     foreach ($documents as $doc) {
+        if (empty($doc['file_path']) || !$fum->fileExists($doc['file_path'])) {
+            continue;
+        }
+
         $filteredDocuments[] = [
             'nik' => $doc['nik'],
             'filename' => $doc['filename'],
@@ -27,7 +31,11 @@ try {
 
     $filteredPhotos = [];
     foreach ($photos as $photo) {
-        if ($photo['type'] === 'biometric') {
+        if (
+            $photo['type'] === 'biometric' &&
+            !empty($photo['photo_path']) &&
+            $fum->fileExists($photo['photo_path'])
+        ) {
             $filteredPhotos[] = [
                 'nik' => $photo['nik'],
                 'filename' => $photo['filename'],

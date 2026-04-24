@@ -324,10 +324,19 @@ class PersonModel extends Database
 
     public function add(stdClass $person): bool
     {
-        $persons = $this->query("select * from person where nik = '$person->nik'");
+        $persons = $this->query("
+            select nik, sk_number
+            from person
+            where nik = '$person->nik'
+              and deleted_at is null
+        ");
 
         if (count($persons) > 0) {
-            throw new \Exception('Data exists, sudah ada di daftar SK');
+            $existingSk = $persons[0]->sk_number ?? null;
+            if (!empty($existingSk)) {
+                throw new \Exception("Data exists, NIK ini sudah ada di daftar SK pada {$existingSk}");
+            }
+            throw new \Exception('Data exists, NIK ini sudah ada di daftar SK');
         }
 
         $sk_number = empty($person->sk_number) ? "NULL" : "'$person->sk_number'";

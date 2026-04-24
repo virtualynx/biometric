@@ -18,12 +18,21 @@ if(!empty($_POST['without_photo']) && filter_var($_POST['without_photo'], FILTER
 }
 
 $pm = new PersonModel();
+$fum = new FileUploadModel();
 
 try{
     $person = $pm->get($_POST['nik']);
 
     $person = json_decode(json_encode($person), true);
-    $photosRaw = $person['photos'];
+    $person['documents'] = array_values(array_filter(
+        $person['documents'] ?? [],
+        fn($row) => !empty($row['file_path']) && $fum->fileExists($row['file_path'])
+    ));
+
+    $photosRaw = array_values(array_filter(
+        $person['photos'] ?? [],
+        fn($row) => !empty($row['photo_path']) && $fum->fileExists($row['photo_path'])
+    ));
 
     //removes biometric photo from photos
     $photos = [];
@@ -43,8 +52,17 @@ try{
             }
         }
         if(!empty($bioPhoto)){
-            $fum = new FileUploadModel();
-            $bioPhoto = $fum->getBase64String($bioPhoto['filename'], $bioPhoto['photo_path']);
+            try{
+                $bioPhoto = $fum->getBase64String($bioPhoto['filename'], $bioPhoto['photo_path']);
+            }catch(\Exception $photoException){
+                if(str_starts_with($photoException->getMessage(), 'File ') && str_ends_with($photoException->getMessage(), ' does not exists')){
+                    error_log($photoException->getMessage());
+                    $bioPhoto = null;
+                    $person['photo_warning'] = 'Biometric photo file is missing';
+                }else{
+                    throw $photoException;
+                }
+            }
         }
         $person['photo'] = $bioPhoto;
     }
