@@ -26,6 +26,27 @@ class PersonModel extends Database
 
     public static $STATUS = [];
 
+    private function ensureTrxSubjectStatusVerifierColumns(): void
+    {
+        $columns = $this->query("SHOW COLUMNS FROM trx_subject_status");
+        $existingColumns = array_map(
+            fn($column) => $column->Field ?? null,
+            $columns
+        );
+
+        if (!in_array('verifier_name', $existingColumns, true)) {
+            $this->execute("ALTER TABLE trx_subject_status ADD COLUMN verifier_name VARCHAR(255) NULL AFTER is_done");
+        }
+
+        if (!in_array('verifier_email', $existingColumns, true)) {
+            $this->execute("ALTER TABLE trx_subject_status ADD COLUMN verifier_email VARCHAR(255) NULL AFTER verifier_name");
+        }
+
+        if (!in_array('verified_at', $existingColumns, true)) {
+            $this->execute("ALTER TABLE trx_subject_status ADD COLUMN verified_at DATETIME NULL AFTER verifier_email");
+        }
+    }
+
     public function __construct()
     {
         parent::__construct();
@@ -72,6 +93,8 @@ class PersonModel extends Database
 
     public function listSummary(?string $sk_number = null): array
     {
+        $this->ensureTrxSubjectStatusVerifierColumns();
+
         if (!empty($sk_number)) {
             $stmt = $this->db->prepare("
                 SELECT *
@@ -166,7 +189,9 @@ class PersonModel extends Database
         $statusFlagRows = $this->query("
             SELECT
                 nik,
-                MAX(CASE WHEN status_id = 'AGR-DISC' AND is_done = 1 THEN 1 ELSE 0 END) AS agr_disc_done
+                MAX(CASE WHEN status_id = 'AGR-DISC' AND is_done = 1 THEN 1 ELSE 0 END) AS agr_disc_done,
+                MAX(CASE WHEN status_id = 'AGR-DISC' AND is_done = 1 THEN verifier_name ELSE NULL END) AS agr_disc_verified_by_name,
+                MAX(CASE WHEN status_id = 'AGR-DISC' AND is_done = 1 THEN verified_at ELSE NULL END) AS agr_disc_verified_at
             FROM trx_subject_status
             WHERE nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
             GROUP BY nik
@@ -232,6 +257,8 @@ class PersonModel extends Database
         foreach ($statusFlagRows as $row) {
             $statusFlagMap[$row->nik] = [
                 'agr_disc_done' => intval($row->agr_disc_done) === 1,
+                'agr_disc_verified_by_name' => $row->agr_disc_verified_by_name ?? null,
+                'agr_disc_verified_at' => $row->agr_disc_verified_at ?? null,
             ];
         }
 
@@ -249,6 +276,8 @@ class PersonModel extends Database
             $hasFace = $faceMap[$nik] ?? false;
             $statusFlags = $statusFlagMap[$nik] ?? [
                 'agr_disc_done' => false,
+                'agr_disc_verified_by_name' => null,
+                'agr_disc_verified_at' => null,
             ];
 
             $fingerprintStatus = 'unregistered';
