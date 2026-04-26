@@ -125,6 +125,10 @@ class PersonModel extends Database
             fn($row) => $row['nik'] ?? null,
             $persons
         )));
+        $familyCardList = array_values(array_filter(array_unique(array_map(
+            fn($row) => !empty($row['familycard_no']) ? trim($row['familycard_no']) : null,
+            $persons
+        ))));
 
         if (!empty($nikList)) {
             $seedValues = array_map(function ($nik) {
@@ -196,6 +200,22 @@ class PersonModel extends Database
             WHERE nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
             GROUP BY nik
         ", $nikList);
+        $nikDuplicateRows = $this->query("
+            SELECT nik, COUNT(*) AS total
+            FROM person
+            WHERE deleted_at IS NULL
+              AND nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+            GROUP BY nik
+        ", $nikList);
+        $familyCardDuplicateRows = !empty($familyCardList)
+            ? $this->query("
+                SELECT familycard_no, COUNT(*) AS total
+                FROM person
+                WHERE deleted_at IS NULL
+                  AND familycard_no IN (" . implode(',', array_fill(0, count($familyCardList), '?')) . ")
+                GROUP BY familycard_no
+            ", $familyCardList)
+            : [];
 
         $defaultRegistrationStatus = "Registrasi";
         $defaultRegistrationStatusRow = $this->query("
@@ -262,8 +282,19 @@ class PersonModel extends Database
             ];
         }
 
+        $nikDuplicateMap = [];
+        foreach ($nikDuplicateRows as $row) {
+            $nikDuplicateMap[$row->nik] = max(0, intval($row->total) - 1);
+        }
+
+        $familyCardDuplicateMap = [];
+        foreach ($familyCardDuplicateRows as $row) {
+            $familyCardDuplicateMap[$row->familycard_no] = max(0, intval($row->total) - 1);
+        }
+
         foreach ($persons as &$row) {
             $nik = $row['nik'];
+            $familyCardNo = !empty($row['familycard_no']) ? trim($row['familycard_no']) : null;
             $docFlags = $docPresenceMap[$nik] ?? [
                 'has_ktp' => false,
                 'has_kk' => false,
@@ -296,6 +327,12 @@ class PersonModel extends Database
             ];
             $row['document_flags'] = $docFlags;
             $row['status_flags'] = $statusFlags;
+            $row['relation_flags'] = [
+                'has_duplicate_nik' => ($nikDuplicateMap[$nik] ?? 0) > 0,
+                'duplicate_nik_count' => $nikDuplicateMap[$nik] ?? 0,
+                'has_duplicate_familycard' => !empty($familyCardNo) && (($familyCardDuplicateMap[$familyCardNo] ?? 0) > 0),
+                'duplicate_familycard_count' => !empty($familyCardNo) ? ($familyCardDuplicateMap[$familyCardNo] ?? 0) : 0,
+            ];
 
             if (!empty($completedStatusMap[$nik])) {
                 $row['status'] = $completedStatusMap[$nik];
