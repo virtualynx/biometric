@@ -103,6 +103,18 @@ class PersonModel extends Database
             $persons
         )));
 
+        if (!empty($nikList)) {
+            $seedValues = array_map(function ($nik) {
+                $safeNik = $this->db->real_escape_string($nik);
+                return "('$safeNik','REG',1)";
+            }, $nikList);
+
+            $this->execute("
+                INSERT IGNORE INTO trx_subject_status(nik, status_id, is_done)
+                VALUES " . implode(',', $seedValues)
+            );
+        }
+
         $docPresenceRows = $this->documentModel->getPresenceByNikList($nikList);
         $photoPresenceRows = $this->photoModel->getBiometricPresenceByNikList($nikList);
         $fingerprintRows = $this->query("
@@ -132,22 +144,43 @@ class PersonModel extends Database
               AND tss.is_done = 0
             ORDER BY tss.nik ASC, ms.`order` ASC
         ", $nikList);
+        $completedStatusRows = $this->query("
+            SELECT
+                tss.nik,
+                ms.id,
+                ms.name,
+                ms.`order`
+            FROM trx_subject_status tss
+            JOIN master_status ms ON ms.id = tss.status_id
+            WHERE tss.nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+              AND ms.disabled = 0
+              AND tss.is_done = 1
+            ORDER BY tss.nik ASC, ms.`order` DESC
+        ", $nikList);
         $trxPresenceRows = $this->query("
             SELECT nik, COUNT(*) AS total
             FROM trx_subject_status
             WHERE nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
             GROUP BY nik
         ", $nikList);
+        $statusFlagRows = $this->query("
+            SELECT
+                nik,
+                MAX(CASE WHEN status_id = 'AGR-DISC' AND is_done = 1 THEN 1 ELSE 0 END) AS agr_disc_done
+            FROM trx_subject_status
+            WHERE nik IN (" . implode(',', array_fill(0, count($nikList), '?')) . ")
+            GROUP BY nik
+        ", $nikList);
 
-        $defaultPendingStatus = "Pembacaan Perjanjian";
-        $defaultPendingStatusRow = $this->query("
+        $defaultRegistrationStatus = "Registrasi";
+        $defaultRegistrationStatusRow = $this->query("
             SELECT name
             FROM master_status
-            WHERE id = 'AGR-DISC' AND disabled = 0
+            WHERE id = 'REG' AND disabled = 0
             LIMIT 1
         ");
-        if (!empty($defaultPendingStatusRow) && !empty($defaultPendingStatusRow[0]->name)) {
-            $defaultPendingStatus = $defaultPendingStatusRow[0]->name;
+        if (!empty($defaultRegistrationStatusRow) && !empty($defaultRegistrationStatusRow[0]->name)) {
+            $defaultRegistrationStatus = $defaultRegistrationStatusRow[0]->name;
         }
 
         $docPresenceMap = [];
@@ -183,9 +216,23 @@ class PersonModel extends Database
             }
         }
 
+        $completedStatusMap = [];
+        foreach ($completedStatusRows as $row) {
+            if (!isset($completedStatusMap[$row->nik])) {
+                $completedStatusMap[$row->nik] = $row->name;
+            }
+        }
+
         $trxPresenceMap = [];
         foreach ($trxPresenceRows as $row) {
             $trxPresenceMap[$row->nik] = intval($row->total) > 0;
+        }
+
+        $statusFlagMap = [];
+        foreach ($statusFlagRows as $row) {
+            $statusFlagMap[$row->nik] = [
+                'agr_disc_done' => intval($row->agr_disc_done) === 1,
+            ];
         }
 
         foreach ($persons as &$row) {
@@ -200,6 +247,9 @@ class PersonModel extends Database
                 'has_thumb' => false,
             ];
             $hasFace = $faceMap[$nik] ?? false;
+            $statusFlags = $statusFlagMap[$nik] ?? [
+                'agr_disc_done' => false,
+            ];
 
             $fingerprintStatus = 'unregistered';
             if ($fingerprintFlags['has_index'] && $fingerprintFlags['has_thumb']) {
@@ -216,19 +266,14 @@ class PersonModel extends Database
                 'face' => $hasFace ? 'completed' : 'unregistered',
             ];
             $row['document_flags'] = $docFlags;
+            $row['status_flags'] = $statusFlags;
 
-            if (!$docFlags['has_ktp']) {
-                $row['status'] = "Dokumen KTP belum lengkap";
-            } elseif (!$docFlags['has_kk']) {
-                $row['status'] = "Dokumen KK belum lengkap";
-            } elseif (!$hasPhoto) {
-                $row['status'] = "Belum melakukan foto wajah";
-            } elseif (!empty($pendingStatusMap[$nik])) {
-                $row['status'] = $pendingStatusMap[$nik];
-            } elseif (!empty($trxPresenceMap[$nik])) {
-                $row['status'] = "Subjek RA BBT";
+            if (!empty($completedStatusMap[$nik])) {
+                $row['status'] = $completedStatusMap[$nik];
+            } elseif (!empty($pendingStatusMap[$nik]) || !empty($trxPresenceMap[$nik])) {
+                $row['status'] = $defaultRegistrationStatus;
             } else {
-                $row['status'] = $defaultPendingStatus;
+                $row['status'] = $defaultRegistrationStatus;
             }
         }
         unset($row);
