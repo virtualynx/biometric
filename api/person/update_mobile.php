@@ -125,6 +125,16 @@ foreach ($fields as $field) {
 
 $activeNik = $newNik;
 
+$normalizeNullable = static function ($value) {
+    if (!isset($value)) {
+        return null;
+    }
+
+    $trimmed = trim((string) $value);
+
+    return $trimmed === '' ? null : $trimmed;
+};
+
 function replacePhoto($fu, $model, $nik, $base64, $filename, $path, $type)
 {
     if (empty($base64)) return;
@@ -137,6 +147,11 @@ function replacePhoto($fu, $model, $nik, $base64, $filename, $path, $type)
 
     $model->add($nik, $filedata->filename, $filedata->path, $type, null, $filedata->extension);
 }
+
+$person->beneficiary_nik = $normalizeNullable($input['beneficiary_nik'] ?? null);
+$person->beneficiary_familycard_no = $normalizeNullable($input['beneficiary_familycard_no'] ?? null);
+$person->beneficiary_name = $normalizeNullable($input['beneficiary_name'] ?? null);
+$person->beneficiary_address = $normalizeNullable($input['beneficiary_address'] ?? null);
 
 if (!empty($input['photo_profile'])) {
     replacePhoto(

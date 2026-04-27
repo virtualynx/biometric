@@ -47,6 +47,31 @@ class PersonModel extends Database
         }
     }
 
+    private function ensureBeneficiaryColumns(): void
+    {
+        $columns = $this->query("SHOW COLUMNS FROM person");
+        $existingColumns = array_map(
+            fn($column) => $column->Field ?? null,
+            $columns
+        );
+
+        if (!in_array('beneficiary_nik', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN beneficiary_nik VARCHAR(32) NULL AFTER luas_bangunan");
+        }
+
+        if (!in_array('beneficiary_familycard_no', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN beneficiary_familycard_no VARCHAR(32) NULL AFTER beneficiary_nik");
+        }
+
+        if (!in_array('beneficiary_name', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN beneficiary_name VARCHAR(255) NULL AFTER beneficiary_familycard_no");
+        }
+
+        if (!in_array('beneficiary_address', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN beneficiary_address TEXT NULL AFTER beneficiary_name");
+        }
+    }
+
     public function __construct()
     {
         parent::__construct();
@@ -56,6 +81,7 @@ class PersonModel extends Database
         $this->documentModel = new DocumentModel();
         $this->fileUploadModel = new FileUploadModel();
         $this->faceModel = new FaceModel();
+        $this->ensureBeneficiaryColumns();
     }
 
     public function list(?string $sk_number = null): array
@@ -522,13 +548,17 @@ class PersonModel extends Database
     {
         $sql = "
         UPDATE person SET
-        name = ?,
+            name = ?,
             address = ?,
             familycard_no = ?,
             village = ?,
             phone = ?,
             luas_tanah = ?,
             luas_bangunan = ?,
+            beneficiary_nik = ?,
+            beneficiary_familycard_no = ?,
+            beneficiary_name = ?,
+            beneficiary_address = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE
             nik = ?
@@ -542,7 +572,7 @@ class PersonModel extends Database
         $person->luas_tanah = $person->luas_tanah ?? 0;
         $person->luas_bangunan = $person->luas_bangunan ?? 0;
         $stmt->bind_param(
-            "sssssddss",
+            "sssssddssssss",
             $person->name,
             $person->address,
             $person->familycard_no,
@@ -550,6 +580,10 @@ class PersonModel extends Database
             $person->phone,
             $person->luas_tanah,
             $person->luas_bangunan,
+            $person->beneficiary_nik,
+            $person->beneficiary_familycard_no,
+            $person->beneficiary_name,
+            $person->beneficiary_address,
             $person->nik,
             $sk_number
         );

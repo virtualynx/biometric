@@ -38,6 +38,10 @@ try {
         'sk_number'     => $potensi->sk_number,
         'luas_tanah'    => $potensi->luas_tanah,
         'luas_bangunan' => $potensi->luas_bangunan,
+        'beneficiary_nik' => $potensi->beneficiary_nik ?? null,
+        'beneficiary_familycard_no' => $potensi->beneficiary_familycard_no ?? null,
+        'beneficiary_name' => $potensi->beneficiary_name ?? null,
+        'beneficiary_address' => $potensi->beneficiary_address ?? null,
     ]);
 
     $potensiModel->markAsApproved($potensi->id);

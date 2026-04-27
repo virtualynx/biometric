@@ -18,6 +18,7 @@ require_once(dirname(__FILE__) . "/FaceModel.php");
 class PotensiModel extends Database
 {
     private static $schemaChecked = false;
+    private static $beneficiarySchemaChecked = false;
 
     /** @var \mysqli */
     private $db;
@@ -34,6 +35,7 @@ class PotensiModel extends Database
         $this->documentModel = new DocumentModel();
         $this->faceModel = new FaceModel();
         $this->ensureDuplicateNikAllowed();
+        $this->ensureBeneficiaryColumns();
     }
 
     private function ensureDuplicateNikAllowed(): void
@@ -60,6 +62,41 @@ class PotensiModel extends Database
             }
         } catch (\Throwable $e) {
             error_log("Unable to relax potensi NIK uniqueness: " . $e->getMessage());
+        }
+    }
+
+    private function ensureBeneficiaryColumns(): void
+    {
+        if (self::$beneficiarySchemaChecked) {
+            return;
+        }
+
+        self::$beneficiarySchemaChecked = true;
+
+        try {
+            $columns = $this->query("SHOW COLUMNS FROM potensi");
+            $existingColumns = array_map(
+                fn($column) => $column->Field ?? null,
+                $columns
+            );
+
+            if (!in_array('beneficiary_nik', $existingColumns, true)) {
+                $this->db->query("ALTER TABLE potensi ADD COLUMN beneficiary_nik VARCHAR(32) NULL AFTER luas_bangunan");
+            }
+
+            if (!in_array('beneficiary_familycard_no', $existingColumns, true)) {
+                $this->db->query("ALTER TABLE potensi ADD COLUMN beneficiary_familycard_no VARCHAR(32) NULL AFTER beneficiary_nik");
+            }
+
+            if (!in_array('beneficiary_name', $existingColumns, true)) {
+                $this->db->query("ALTER TABLE potensi ADD COLUMN beneficiary_name VARCHAR(255) NULL AFTER beneficiary_familycard_no");
+            }
+
+            if (!in_array('beneficiary_address', $existingColumns, true)) {
+                $this->db->query("ALTER TABLE potensi ADD COLUMN beneficiary_address TEXT NULL AFTER beneficiary_name");
+            }
+        } catch (\Throwable $e) {
+            error_log("Unable to ensure potensi beneficiary columns: " . $e->getMessage());
         }
     }
 
@@ -235,14 +272,16 @@ class PotensiModel extends Database
                 nik, name, address, familycard_no,
                 village, phone, sk_number,
                 luas_tanah, luas_bangunan,
+                beneficiary_nik, beneficiary_familycard_no,
+                beneficiary_name, beneficiary_address,
                 status, created_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, 'POTENSI', CURRENT_TIMESTAMP
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'POTENSI', CURRENT_TIMESTAMP
             )
         ");
 
         $stmt->bind_param(
-            "sssssssdd",
+            "sssssssddssss",
             $data->nik,
             $data->name,
             $data->address,
@@ -251,7 +290,11 @@ class PotensiModel extends Database
             $data->phone,
             $data->sk_number,
             $data->luas_tanah,
-            $data->luas_bangunan
+            $data->luas_bangunan,
+            $data->beneficiary_nik,
+            $data->beneficiary_familycard_no,
+            $data->beneficiary_name,
+            $data->beneficiary_address
         );
 
         $res = $stmt->execute();
@@ -271,13 +314,17 @@ class PotensiModel extends Database
                 phone = ?,
                 luas_tanah = ?,
                 luas_bangunan = ?,
+                beneficiary_nik = ?,
+                beneficiary_familycard_no = ?,
+                beneficiary_name = ?,
+                beneficiary_address = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE nik = ?
               AND deleted_at IS NULL
         ");
 
         $stmt->bind_param(
-            "sssssdds",
+            "sssssddsssss",
             $data->name,
             $data->address,
             $data->familycard_no,
@@ -285,6 +332,10 @@ class PotensiModel extends Database
             $data->phone,
             $data->luas_tanah,
             $data->luas_bangunan,
+            $data->beneficiary_nik,
+            $data->beneficiary_familycard_no,
+            $data->beneficiary_name,
+            $data->beneficiary_address,
             $data->nik
         );
 
@@ -306,13 +357,17 @@ class PotensiModel extends Database
                 phone = ?,
                 luas_tanah = ?,
                 luas_bangunan = ?,
+                beneficiary_nik = ?,
+                beneficiary_familycard_no = ?,
+                beneficiary_name = ?,
+                beneficiary_address = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
               AND deleted_at IS NULL
         ");
 
         $stmt->bind_param(
-            "ssssssddi",
+            "ssssssddssssi",
             $data->nik,
             $data->name,
             $data->address,
@@ -321,6 +376,10 @@ class PotensiModel extends Database
             $data->phone,
             $data->luas_tanah,
             $data->luas_bangunan,
+            $data->beneficiary_nik,
+            $data->beneficiary_familycard_no,
+            $data->beneficiary_name,
+            $data->beneficiary_address,
             $data->id
         );
 

@@ -29,6 +29,16 @@ $dcm = new DocumentModel();
 $phm = new PhotoModel();
 $fm = new FaceModel();
 
+$normalizeNullable = static function ($value) {
+    if (!isset($value)) {
+        return null;
+    }
+
+    $trimmed = trim((string) $value);
+
+    return $trimmed === '' ? null : $trimmed;
+};
+
 try {
     $potensiId = isset($input['potensi_id']) ? intval($input['potensi_id']) : 0;
     $potensi = $potensiId > 0 ? $pm->getById($potensiId) : null;
@@ -175,6 +185,10 @@ try {
             'phone'         => $input['phone'] ?? null,
             'luas_tanah'    => $input['luas_tanah'] ?? null,
             'luas_bangunan' => $input['luas_bangunan'] ?? null,
+            'beneficiary_nik' => $normalizeNullable($input['beneficiary_nik'] ?? null),
+            'beneficiary_familycard_no' => $normalizeNullable($input['beneficiary_familycard_no'] ?? null),
+            'beneficiary_name' => $normalizeNullable($input['beneficiary_name'] ?? null),
+            'beneficiary_address' => $normalizeNullable($input['beneficiary_address'] ?? null),
         ];
 
         $result = $pm->updateById($data);
