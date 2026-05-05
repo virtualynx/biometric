@@ -406,6 +406,16 @@ class PersonModel extends Database
                 'has_duplicate_familycard' => !empty($familyCardNo) && (($familyCardDuplicateMap[$familyCardNo] ?? 0) > 0),
                 'duplicate_familycard_count' => !empty($familyCardNo) ? ($familyCardDuplicateMap[$familyCardNo] ?? 0) : 0,
             ];
+            $fullVerificationNote = isset($row['verification_note'])
+                ? trim((string) $row['verification_note'])
+                : '';
+            $row['has_special_note'] = $fullVerificationNote !== '';
+            $row['verification_note_preview'] = $fullVerificationNote !== ''
+                ? (function_exists('mb_substr')
+                    ? mb_substr($fullVerificationNote, 0, 180)
+                    : substr($fullVerificationNote, 0, 180))
+                : null;
+            unset($row['verification_note']);
 
             if (!empty($completedStatusMap[$nik])) {
                 $row['status'] = $completedStatusMap[$nik];
