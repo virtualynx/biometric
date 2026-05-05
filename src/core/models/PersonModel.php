@@ -19,6 +19,9 @@ class PersonModel extends Database
 {
     /** @var \mysqli */
     private $db;
+    private static $trxVerifierSchemaChecked = false;
+    private static $beneficiarySchemaChecked = false;
+    private static $verificationNoteSchemaChecked = false;
     private $photoModel;
     private $documentModel;
     private $fileUploadModel;
@@ -28,6 +31,12 @@ class PersonModel extends Database
 
     private function ensureTrxSubjectStatusVerifierColumns(): void
     {
+        if (self::$trxVerifierSchemaChecked) {
+            return;
+        }
+
+        self::$trxVerifierSchemaChecked = true;
+
         $columns = $this->query("SHOW COLUMNS FROM trx_subject_status");
         $existingColumns = array_map(
             fn($column) => $column->Field ?? null,
@@ -49,6 +58,12 @@ class PersonModel extends Database
 
     private function ensureBeneficiaryColumns(): void
     {
+        if (self::$beneficiarySchemaChecked) {
+            return;
+        }
+
+        self::$beneficiarySchemaChecked = true;
+
         $columns = $this->query("SHOW COLUMNS FROM person");
         $existingColumns = array_map(
             fn($column) => $column->Field ?? null,
@@ -72,6 +87,37 @@ class PersonModel extends Database
         }
     }
 
+    private function ensureVerificationNoteColumns(): void
+    {
+        if (self::$verificationNoteSchemaChecked) {
+            return;
+        }
+
+        self::$verificationNoteSchemaChecked = true;
+
+        $columns = $this->query("SHOW COLUMNS FROM person");
+        $existingColumns = array_map(
+            fn($column) => $column->Field ?? null,
+            $columns
+        );
+
+        if (!in_array('verification_note', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN verification_note TEXT NULL AFTER beneficiary_address");
+        }
+
+        if (!in_array('verification_note_by_name', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN verification_note_by_name VARCHAR(255) NULL AFTER verification_note");
+        }
+
+        if (!in_array('verification_note_by_email', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN verification_note_by_email VARCHAR(255) NULL AFTER verification_note_by_name");
+        }
+
+        if (!in_array('verification_note_updated_at', $existingColumns, true)) {
+            $this->execute("ALTER TABLE person ADD COLUMN verification_note_updated_at DATETIME NULL AFTER verification_note_by_email");
+        }
+    }
+
     public function __construct()
     {
         parent::__construct();
@@ -82,6 +128,7 @@ class PersonModel extends Database
         $this->fileUploadModel = new FileUploadModel();
         $this->faceModel = new FaceModel();
         $this->ensureBeneficiaryColumns();
+        $this->ensureVerificationNoteColumns();
     }
 
     public function list(?string $sk_number = null): array
@@ -594,6 +641,57 @@ class PersonModel extends Database
         $stmt->close();
 
         return $affected > 0;
+    }
+
+    public function updateVerificationNote(
+        string $nik,
+        ?string $note,
+        ?string $byName,
+        ?string $byEmail
+    ): bool {
+        $normalizedNote = $note !== null ? trim($note) : null;
+        $normalizedByName = $byName !== null ? trim($byName) : null;
+        $normalizedByEmail = $byEmail !== null ? trim($byEmail) : null;
+
+        if ($normalizedNote === '') {
+            $normalizedNote = null;
+            $normalizedByName = null;
+            $normalizedByEmail = null;
+        }
+
+        $sql = "
+            UPDATE person
+            SET
+                verification_note = ?,
+                verification_note_by_name = ?,
+                verification_note_by_email = ?,
+                verification_note_updated_at = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE nik = ?
+              AND deleted_at IS NULL
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) {
+            throw new \Exception("Prepare failed: " . $this->db->error);
+        }
+
+        $noteUpdatedAt = $normalizedNote ? date('Y-m-d H:i:s') : null;
+
+        $stmt->bind_param(
+            "sssss",
+            $normalizedNote,
+            $normalizedByName,
+            $normalizedByEmail,
+            $noteUpdatedAt,
+            $nik
+        );
+
+        $stmt->execute();
+        $affected = $stmt->affected_rows;
+        $stmt->close();
+
+        return $affected >= 0;
     }
 
 
