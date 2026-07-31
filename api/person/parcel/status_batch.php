@@ -31,6 +31,7 @@ try {
         $result[$nik] = [
             "total_parcels" => 0,
             "total_parcels_with_shp" => 0,
+            "total_area_declared" => 0,
         ];
     }
 
@@ -42,10 +43,14 @@ try {
         $totalParcelsWithShp = is_array($row)
             ? (int) $row["total_parcels_with_shp"]
             : (int) $row->total_parcels_with_shp;
+        $totalAreaDeclared = is_array($row)
+            ? (float) $row["total_area_declared"]
+            : (float) $row->total_area_declared;
 
         $result[$nik] = [
             "total_parcels" => $totalParcels,
             "total_parcels_with_shp" => $totalParcelsWithShp,
+            "total_area_declared" => $totalAreaDeclared,
         ];
     }
 

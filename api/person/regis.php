@@ -50,6 +50,17 @@ $db = $dbInstance->getConnection();
 $potensiModel = new PotensiModel();
 $hasExistingNikInPotensi = $potensiModel->exists($input['nik']);
 
+if ($hasExistingNikInPotensi) {
+    http_response_code(409);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'DUPLICATE_NIK',
+        'error' => 'NIK sudah aktif di tabel Potensi. Gunakan fitur Update untuk memperbarui data subjek.',
+        'nik' => $input['nik'],
+    ]);
+    exit;
+}
+
 $potensiData = (object)[
     'nik'           => $input['nik'],
     'name'          => $input['name'] ?? null,
@@ -235,9 +246,7 @@ echo json_encode([
     'status' => 'POTENSI',
     'nik' => $input['nik'],
     'name'    => $input['name'] ?? null,
-    'duplicate_nik' => $hasExistingNikInPotensi,
-    'message' => $hasExistingNikInPotensi
-        ? 'Data berhasil disimpan sebagai Potensi. NIK ini sudah ada sebelumnya, pastikan kamu memperbaharuinya.'
-        : 'Data berhasil disimpan sebagai Potensi'
+    'duplicate_nik' => false,
+    'message' => 'Data berhasil disimpan sebagai Potensi'
 ]);
 exit;

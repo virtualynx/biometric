@@ -34,11 +34,11 @@ class PotensiModel extends Database
         $this->photoModel = new PhotoModel();
         $this->documentModel = new DocumentModel();
         $this->faceModel = new FaceModel();
-        $this->ensureDuplicateNikAllowed();
+        $this->ensureActiveNikUniqueness();
         $this->ensureBeneficiaryColumns();
     }
 
-    private function ensureDuplicateNikAllowed(): void
+    private function ensureActiveNikUniqueness(): void
     {
         if (self::$schemaChecked) {
             return;
@@ -47,21 +47,51 @@ class PotensiModel extends Database
         self::$schemaChecked = true;
 
         try {
-            $stmt = $this->db->prepare("
+            $columns = $this->query("SHOW COLUMNS FROM potensi");
+            $columnNames = array_map(
+                fn($column) => $column->Field ?? null,
+                $columns
+            );
+
+            if (!in_array('active_nik', $columnNames, true)) {
+                $this->db->query("
+                    ALTER TABLE potensi
+                    ADD COLUMN active_nik VARCHAR(20)
+                    GENERATED ALWAYS AS (
+                        CASE WHEN deleted_at IS NULL THEN nik ELSE NULL END
+                    ) STORED
+                ");
+            }
+
+            $duplicateResult = $this->db->query("
+                SELECT nik
+                FROM potensi
+                WHERE deleted_at IS NULL
+                GROUP BY nik
+                HAVING COUNT(*) > 1
+                LIMIT 1
+            ");
+
+            if ($duplicateResult && $duplicateResult->num_rows > 0) {
+                error_log("Unable to enforce potensi NIK uniqueness: active duplicate NIK still exists");
+                return;
+            }
+
+            $indexResult = $this->db->query("
                 SHOW INDEX FROM potensi
-                WHERE Key_name = 'uniq_potensi_nik'
+                WHERE Key_name = 'uniq_potensi_active_nik'
                   AND Non_unique = 0
             ");
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $hasLegacyUniqueNik = $result && $result->num_rows > 0;
-            $stmt->close();
+            $hasActiveNikIndex = $indexResult && $indexResult->num_rows > 0;
 
-            if ($hasLegacyUniqueNik) {
-                $this->db->query("ALTER TABLE potensi DROP INDEX uniq_potensi_nik");
+            if (!$hasActiveNikIndex) {
+                $this->db->query("
+                    ALTER TABLE potensi
+                    ADD UNIQUE INDEX uniq_potensi_active_nik (active_nik)
+                ");
             }
         } catch (\Throwable $e) {
-            error_log("Unable to relax potensi NIK uniqueness: " . $e->getMessage());
+            error_log("Unable to enforce potensi NIK uniqueness: " . $e->getMessage());
         }
     }
 
@@ -267,6 +297,21 @@ class PotensiModel extends Database
 
     public function add(stdClass $data): bool
     {
+        $nullableNumber = static function ($value): ?float {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            return (float) $value;
+        };
+
+        $luasTanah = $nullableNumber($data->luas_tanah ?? null);
+        $luasBangunan = $nullableNumber($data->luas_bangunan ?? null);
+        $beneficiaryNik = $data->beneficiary_nik ?? null;
+        $beneficiaryFamilycardNo = $data->beneficiary_familycard_no ?? null;
+        $beneficiaryName = $data->beneficiary_name ?? null;
+        $beneficiaryAddress = $data->beneficiary_address ?? null;
+
         $stmt = $this->db->prepare("
             INSERT INTO potensi (
                 nik, name, address, familycard_no,
@@ -289,12 +334,12 @@ class PotensiModel extends Database
             $data->village,
             $data->phone,
             $data->sk_number,
-            $data->luas_tanah,
-            $data->luas_bangunan,
-            $data->beneficiary_nik,
-            $data->beneficiary_familycard_no,
-            $data->beneficiary_name,
-            $data->beneficiary_address
+            $luasTanah,
+            $luasBangunan,
+            $beneficiaryNik,
+            $beneficiaryFamilycardNo,
+            $beneficiaryName,
+            $beneficiaryAddress
         );
 
         $res = $stmt->execute();

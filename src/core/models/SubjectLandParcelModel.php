@@ -325,28 +325,37 @@ class SubjectLandParcelModel extends Database
 
     public function getShpSummaryByNikList(array $nikList): array
     {
+        $nikList = array_values(array_unique(array_filter(array_map(
+            fn($nik) => trim((string) $nik),
+            $nikList
+        ))));
+
         if (empty($nikList)) {
             return [];
         }
 
-        if (count($nikList) > 500) {
-            $nikList = array_slice($nikList, 0, 500);
+        $rows = [];
+        foreach (array_chunk($nikList, 500) as $nikChunk) {
+            $placeholders = implode(',', array_fill(0, count($nikChunk), '?'));
+            $chunkRows = $this->fetchAll("
+                SELECT
+                    slp.nik,
+                    COUNT(*) AS total_parcels,
+                    SUM(CASE WHEN slpf.parcel_id IS NOT NULL THEN 1 ELSE 0 END) AS total_parcels_with_shp,
+                    COALESCE(SUM(slp.area_declared), 0) AS total_area_declared
+                FROM subject_land_parcel slp
+                LEFT JOIN (
+                    SELECT DISTINCT parcel_id
+                    FROM subject_land_parcel_file
+                    WHERE deleted_at IS NULL
+                ) slpf ON slpf.parcel_id = slp.id
+                WHERE slp.deleted_at IS NULL
+                  AND slp.nik IN ($placeholders)
+                GROUP BY slp.nik
+            ", $nikChunk);
+            $rows = array_merge($rows, $chunkRows);
         }
 
-        $placeholders = implode(',', array_fill(0, count($nikList), '?'));
-
-        return $this->fetchAll("
-            SELECT
-                slp.nik,
-                COUNT(DISTINCT slp.id) AS total_parcels,
-                COUNT(DISTINCT CASE WHEN slpf.id IS NOT NULL THEN slp.id END) AS total_parcels_with_shp
-            FROM subject_land_parcel slp
-            LEFT JOIN subject_land_parcel_file slpf
-                ON slpf.parcel_id = slp.id
-                AND slpf.deleted_at IS NULL
-            WHERE slp.deleted_at IS NULL
-              AND slp.nik IN ($placeholders)
-            GROUP BY slp.nik
-        ", array_map(fn($nik) => (string) $nik, $nikList));
+        return $rows;
     }
 }

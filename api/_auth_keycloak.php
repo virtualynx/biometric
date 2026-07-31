@@ -1,18 +1,18 @@
 <?php
 
-require_once(dirname(__FILE__) . "/models/EnvFileModel.php");
+require_once(dirname(__FILE__) . "/../src/core/models/EnvFileModel.php");
 
 use biometric\src\core\models\EnvFileModel;
 
 function keycloak_require_auth()
 {
-    $headers = getallheaders();
+    $headers = array_change_key_case(getallheaders(), CASE_LOWER);
 
-    if (!isset($headers['Authorization'])) {
+    if (!isset($headers['authorization'])) {
         unauthorized();
     }
 
-    $auth = $headers['Authorization'];
+    $auth = $headers['authorization'];
 
     if (strpos($auth, 'Bearer ') !== 0) {
         unauthorized();
@@ -37,7 +37,10 @@ function keycloak_require_auth()
         "Authorization: Bearer $token",
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     $response = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
