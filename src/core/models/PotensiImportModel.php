@@ -41,22 +41,32 @@ class PotensiImportModel extends Database
 
     private function buildAddress(array $row): string
     {
-        $parts = [];
-        $addressDomisili = $this->normalizeText($row['address_domisili'] ?? '', 1000);
-        $addressKtp = $this->normalizeText($row['address_ktp'] ?? '', 1000);
+        $addressParts = [];
+        $addressDomisili = rtrim(
+            $this->normalizeText($row['address_domisili'] ?? '', 1000),
+            " \t\n\r\0\x0B,;"
+        );
+        $addressKtp = rtrim(
+            $this->normalizeText($row['address_ktp'] ?? '', 1000),
+            " \t\n\r\0\x0B,;"
+        );
         $rtRw = $this->normalizeText($row['rt_rw'] ?? '', 30);
+        $rtRw = preg_replace('/^RT\s*\/\s*RW\s*:?\s*/iu', '', $rtRw) ?? $rtRw;
+        $rtRw = trim($rtRw);
 
         if ($addressDomisili !== '') {
-            $parts[] = 'Alamat Domisili: ' . $addressDomisili;
+            $addressParts[] = $addressDomisili;
         }
         if ($addressKtp !== '') {
-            $parts[] = 'Alamat KTP: ' . $addressKtp;
-        }
-        if ($rtRw !== '') {
-            $parts[] = 'RT/RW: ' . $rtRw;
+            $addressParts[] = $addressKtp;
         }
 
-        return implode('; ', $parts);
+        $address = implode(', ', $addressParts);
+        if ($rtRw !== '') {
+            $address .= ($address !== '' ? ' ' : '') . 'RT/RW: ' . $rtRw;
+        }
+
+        return $address;
     }
 
     private function findExistingNiks(array $niks): array

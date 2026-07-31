@@ -1,30 +1,14 @@
 <?php
 
 require_once(dirname(__FILE__) . "/../_api_header.php");
-require_once(dirname(__FILE__) . "/../../src/core/models/EnvFileModel.php");
 require_once(dirname(__FILE__) . "/../../src/core/models/PotensiImportModel.php");
 
-use biometric\src\core\models\EnvFileModel;
 use biometric\src\core\models\PotensiImportModel;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Metode tidak diizinkan.']);
     exit;
-}
-
-$env = new EnvFileModel();
-$keycloakBaseUrl = '';
-$keycloakRealm = '';
-try {
-    $keycloakBaseUrl = trim((string) $env->get('KEYCLOAK_BASE_URL'));
-    $keycloakRealm = trim((string) $env->get('KEYCLOAK_REALM'));
-} catch (\Throwable $exception) {
-    // Local development may not configure Keycloak; production does.
-}
-if ($keycloakBaseUrl !== '' && $keycloakRealm !== '') {
-    require_once(dirname(__FILE__) . "/../_auth_keycloak.php");
-    keycloak_require_auth();
 }
 
 $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
