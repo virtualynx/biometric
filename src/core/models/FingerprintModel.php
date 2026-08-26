@@ -35,26 +35,17 @@ class FingerprintModel extends Database {
     }
 
     public function add(string $nik, string $handSide, string $fingerType, string $hash): bool{
-        $res = $this->execute("
-            insert into fingerprint(
-                nik,
-                finger_type,
-                hand_side,
-                hash
-            )
-            values(
-                '$nik',
-                '$fingerType',
-                '$handSide',
-                '$hash'
-            )
-        ");
+        $res = $this->executePrepared(
+            'INSERT INTO fingerprint (nik, finger_type, hand_side, hash)
+             VALUES (?, ?, ?, ?)',
+            [$nik, $fingerType, $handSide, $hash]
+        );
 
         return $res;
     }
 
     public function clearFingerprintsForNik(string $nik): bool{
-        $res = $this->execute("delete from fingerprint where nik = '$nik'");
+        $res = $this->executePrepared('DELETE FROM fingerprint WHERE nik = ?', [$nik]);
 
         return $res;
     }

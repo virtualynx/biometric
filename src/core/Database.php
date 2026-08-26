@@ -36,9 +36,10 @@ class Database
 
         $this->conn = new mysqli($this->host, $this->user, $this->password, $this->database);
         if (mysqli_connect_errno()) {
-            printf("Connection Failed: %s\n",  mysqli_connect_errno());
-            exit();
+            throw new \RuntimeException('Database connection failed');
         }
+
+        $this->conn->set_charset('utf8mb4');
     }
 
     public function getConnection()
@@ -70,6 +71,34 @@ class Database
         $rs = mysqli_query($this->conn, $query);
 
         return $rs;
+    }
+
+    public function queryPrepared(string $query, array $params = []): array
+    {
+        $statement = $this->conn->prepare($query);
+        if ($params !== []) {
+            $types = str_repeat('s', count($params));
+            $statement->bind_param($types, ...$params);
+        }
+        $statement->execute();
+        $result = $statement->get_result();
+        $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $statement->close();
+
+        return json_decode(json_encode($rows));
+    }
+
+    public function executePrepared(string $query, array $params = []): bool
+    {
+        $statement = $this->conn->prepare($query);
+        if ($params !== []) {
+            $types = str_repeat('s', count($params));
+            $statement->bind_param($types, ...$params);
+        }
+        $success = $statement->execute();
+        $statement->close();
+
+        return $success;
     }
 
     function beginTransaction()

@@ -432,11 +432,13 @@ class PersonModel extends Database
 
     public function get(string $nik, ?string $sk_number = null): stdClass
     {
-        $where_sk = "";
+        $sql = 'SELECT * FROM person WHERE nik = ?';
+        $params = [$nik];
         if (!empty($sk_number)) {
-            $where_sk = " and sk_number = '$sk_number'";
+            $sql .= ' AND sk_number = ?';
+            $params[] = $sk_number;
         }
-        $persons = $this->query("select * from person where nik = '$nik' $where_sk");
+        $persons = $this->query($sql, $params);
 
         if (count($persons) == 0) {
             throw new \Exception('Data not found', 901);
@@ -475,13 +477,128 @@ class PersonModel extends Database
      */
     public function exists(string $nik, ?string $sk_number = null): bool
     {
-        $where_sk = "";
+        $sql = 'SELECT COUNT(*) AS total FROM person WHERE nik = ?';
+        $params = [$nik];
         if (!empty($sk_number)) {
-            $where_sk = " AND sk_number = '$sk_number'";
+            $sql .= ' AND sk_number = ?';
+            $params[] = $sk_number;
+        }
+        $sql .= ' AND deleted_at IS NULL';
+        $rows = $this->query($sql, $params);
+        return isset($rows[0]) && intval($rows[0]->total) > 0;
+    }
+
+    public function migrateNikReferences(string $oldNik, string $newNik): void
+    {
+        if ($oldNik === $newNik) {
+            return;
         }
 
-        $rows = $this->query("SELECT COUNT(*) AS total FROM person WHERE nik = '$nik' $where_sk AND deleted_at IS NULL");
-        return isset($rows[0]) && intval($rows[0]->total) > 0;
+        foreach (['document', 'photo'] as $table) {
+            $conflicts = $this->query(
+                "SELECT COUNT(*) AS total
+                 FROM {$table} source
+                 INNER JOIN {$table} target
+                    ON target.nik = ? AND target.filename = source.filename
+                 WHERE source.nik = ?",
+                [$newNik, $oldNik]
+            );
+            if ((int) ($conflicts[0]->total ?? 0) > 0) {
+                throw new \DomainException(
+                    'NIK baru memiliki dokumen dengan nama file yang sama.'
+                );
+            }
+        }
+
+        $oldPotensi = $this->query(
+            'SELECT COUNT(*) AS total FROM potensi WHERE nik = ? AND deleted_at IS NULL',
+            [$oldNik]
+        );
+        if ((int) ($oldPotensi[0]->total ?? 0) > 0) {
+            $newPotensi = $this->query(
+                'SELECT COUNT(*) AS total FROM potensi WHERE nik = ? AND deleted_at IS NULL',
+                [$newNik]
+            );
+            if ((int) ($newPotensi[0]->total ?? 0) > 0) {
+                throw new \DomainException('NIK baru sudah digunakan pada data potensi.');
+            }
+        }
+
+        $this->execQuery('UPDATE person SET nik = ? WHERE nik = ?', [$newNik, $oldNik]);
+        $this->execQuery('UPDATE document SET nik = ? WHERE nik = ?', [$newNik, $oldNik]);
+        $this->execQuery('UPDATE photo SET nik = ? WHERE nik = ?', [$newNik, $oldNik]);
+        $this->execQuery('UPDATE face SET person_id = ? WHERE person_id = ?', [$newNik, $oldNik]);
+        FaceModel::invalidateDescriptorCache();
+        $this->execQuery('UPDATE fingerprint SET nik = ? WHERE nik = ?', [$newNik, $oldNik]);
+        $this->execQuery('UPDATE queue SET nik = ? WHERE nik = ?', [$newNik, $oldNik]);
+        $this->execQuery(
+            'UPDATE subject_land_parcel SET nik = ?, updated_at = CURRENT_TIMESTAMP WHERE nik = ?',
+            [$newNik, $oldNik]
+        );
+
+        $this->execQuery(
+            'INSERT IGNORE INTO trx_subject_doc_checklist
+                (nik, doc_checklist_id, created_at, updated_at)
+             SELECT ?, doc_checklist_id, created_at, updated_at
+             FROM trx_subject_doc_checklist
+             WHERE nik = ?',
+            [$newNik, $oldNik]
+        );
+        $this->execQuery('DELETE FROM trx_subject_doc_checklist WHERE nik = ?', [$oldNik]);
+
+        $statusRows = $this->query(
+            'SELECT status_id, is_done, verifier_name, verifier_email,
+                    verified_at, created_at, updated_at
+             FROM trx_subject_status
+             WHERE nik = ?',
+            [$oldNik]
+        );
+        foreach ($statusRows as $statusRow) {
+            $this->execQuery(
+                'INSERT INTO trx_subject_status
+                    (nik, status_id, is_done, verifier_name, verifier_email,
+                     verified_at, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    is_done = GREATEST(is_done, VALUES(is_done)),
+                    verifier_name = COALESCE(VALUES(verifier_name), verifier_name),
+                    verifier_email = COALESCE(VALUES(verifier_email), verifier_email),
+                    verified_at = COALESCE(VALUES(verified_at), verified_at),
+                    created_at = LEAST(created_at, VALUES(created_at)),
+                    updated_at = COALESCE(VALUES(updated_at), updated_at)',
+                [
+                    $newNik,
+                    (string) $statusRow->status_id,
+                    (string) $statusRow->is_done,
+                    $statusRow->verifier_name,
+                    $statusRow->verifier_email,
+                    $statusRow->verified_at,
+                    $statusRow->created_at,
+                    $statusRow->updated_at,
+                ]
+            );
+        }
+        $this->execQuery('DELETE FROM trx_subject_status WHERE nik = ?', [$oldNik]);
+
+        if ((int) ($oldPotensi[0]->total ?? 0) > 0) {
+            $this->execQuery(
+                'UPDATE potensi SET nik = ?, updated_at = CURRENT_TIMESTAMP WHERE nik = ?',
+                [$newNik, $oldNik]
+            );
+        }
+
+        $this->execQuery(
+            'UPDATE document
+             SET file_path = REPLACE(file_path, ?, ?)
+             WHERE nik = ?',
+            ["person/$oldNik/", "person/$newNik/", $newNik]
+        );
+        $this->execQuery(
+            'UPDATE photo
+             SET photo_path = REPLACE(photo_path, ?, ?)
+             WHERE nik = ?',
+            ["person/$oldNik/", "person/$newNik/", $newNik]
+        );
     }
 
 
@@ -518,31 +635,36 @@ class PersonModel extends Database
 
     public function add(stdClass $person): bool
     {
-        $persons = $this->query("
-            select nik, sk_number
-            from person
-            where nik = '$person->nik'
-              and deleted_at is null
+        $existingPersonStatement = $this->db->prepare("
+            SELECT nik, sk_number
+            FROM person
+            WHERE nik = ?
+              AND deleted_at IS NULL
+            LIMIT 1
         ");
+        $existingPersonStatement->bind_param("s", $person->nik);
+        $existingPersonStatement->execute();
+        $existingPerson = $existingPersonStatement->get_result()->fetch_object();
+        $existingPersonStatement->close();
 
-        if (count($persons) > 0) {
-            $existingSk = $persons[0]->sk_number ?? null;
+        if ($existingPerson) {
+            $existingSk = $existingPerson->sk_number ?? null;
             if (!empty($existingSk)) {
                 throw new \Exception("Data exists, NIK ini sudah ada di daftar SK pada {$existingSk}");
             }
             throw new \Exception('Data exists, NIK ini sudah ada di daftar SK');
         }
 
-        $sk_number = empty($person->sk_number) ? "NULL" : "'$person->sk_number'";
-        $luas_tanah = empty($person->luas_tanah) ? "NULL" : "$person->luas_tanah";
-        $luas_bangunan = empty($person->luas_bangunan) ? "NULL" : "$person->luas_bangunan";
-        $beneficiary_nik = empty($person->beneficiary_nik) ? "NULL" : "'$person->beneficiary_nik'";
-        $beneficiary_familycard_no = empty($person->beneficiary_familycard_no) ? "NULL" : "'$person->beneficiary_familycard_no'";
-        $beneficiary_name = empty($person->beneficiary_name) ? "NULL" : "'$person->beneficiary_name'";
-        $beneficiary_address = empty($person->beneficiary_address) ? "NULL" : "'$person->beneficiary_address'";
+        $skNumber = empty($person->sk_number) ? null : $person->sk_number;
+        $landArea = empty($person->luas_tanah) ? null : (float)$person->luas_tanah;
+        $buildingArea = empty($person->luas_bangunan) ? null : (float)$person->luas_bangunan;
+        $beneficiaryNik = empty($person->beneficiary_nik) ? null : $person->beneficiary_nik;
+        $beneficiaryFamilycardNo = empty($person->beneficiary_familycard_no) ? null : $person->beneficiary_familycard_no;
+        $beneficiaryName = empty($person->beneficiary_name) ? null : $person->beneficiary_name;
+        $beneficiaryAddress = empty($person->beneficiary_address) ? null : $person->beneficiary_address;
 
-        $res = $this->execute("
-            insert into person(
+        $statement = $this->db->prepare("
+            INSERT INTO person (
                 nik,
                 name,
                 address,
@@ -557,46 +679,67 @@ class PersonModel extends Database
                 beneficiary_name,
                 beneficiary_address
             )
-            values(
-                '$person->nik',
-                '$person->name',
-                '$person->address',
-                '$person->familycard_no',
-                '$person->village',
-                '$person->phone',
-                $sk_number,
-                $luas_tanah,
-                $luas_bangunan,
-                $beneficiary_nik,
-                $beneficiary_familycard_no,
-                $beneficiary_name,
-                $beneficiary_address
-            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
+        $statement->bind_param(
+            "sssssssddssss",
+            $person->nik,
+            $person->name,
+            $person->address,
+            $person->familycard_no,
+            $person->village,
+            $person->phone,
+            $skNumber,
+            $landArea,
+            $buildingArea,
+            $beneficiaryNik,
+            $beneficiaryFamilycardNo,
+            $beneficiaryName,
+            $beneficiaryAddress
+        );
+        $result = $statement->execute();
+        $statement->close();
 
-        return $res;
+        return $result;
     }
 
     public function update(stdClass $person): bool
     {
-        $res = $this->execute("
-            update person
-            set
-                name = '$person->name',
-                address = '$person->address',
-                familycard_no = '$person->familycard_no',
-                village = '$person->village',
-                phone = '$person->phone'
-                " . (!empty($person->luas_tanah) ? ", luas_tanah = $person->luas_tanah" : '') . "
-                " . (!empty($person->luas_bangunan) ? ", luas_bangunan = $person->luas_bangunan" : '') . "
-                " . (!empty($person->beneficiary_nik) ? ", beneficiary_nik = '$person->beneficiary_nik'" : '') . "
-                " . (!empty($person->beneficiary_familycard_no) ? ", beneficiary_familycard_no = '$person->beneficiary_familycard_no'" : '') . "
-                " . (!empty($person->beneficiary_name) ? ", beneficiary_name = '$person->beneficiary_name'" : '') . "
-                " . (!empty($person->beneficiary_address) ? ", beneficiary_address = '$person->beneficiary_address'" : '') . "
-                , updated_at = current_timestamp()
-            where
-                nik = '$person->nik'
-        ");
+        $sets = [
+            'name = ?',
+            'address = ?',
+            'familycard_no = ?',
+            'village = ?',
+            'phone = ?',
+        ];
+        $params = [
+            $person->name,
+            $person->address,
+            $person->familycard_no,
+            $person->village,
+            $person->phone,
+        ];
+        $optionalFields = [
+            'luas_tanah',
+            'luas_bangunan',
+            'beneficiary_nik',
+            'beneficiary_familycard_no',
+            'beneficiary_name',
+            'beneficiary_address',
+        ];
+        foreach ($optionalFields as $field) {
+            if (!empty($person->{$field})) {
+                $sets[] = "{$field} = ?";
+                $params[] = $person->{$field};
+            }
+        }
+        $sets[] = 'updated_at = CURRENT_TIMESTAMP()';
+        $params[] = $person->nik;
+
+        $res = $this->execQuery(
+            'UPDATE person SET ' . implode(', ', $sets) . ' WHERE nik = ?',
+            $params
+        );
 
         return $res;
     }
@@ -708,20 +851,18 @@ class PersonModel extends Database
 
     public function delete(string $nik, string $sk_number)
     {
-        $res = $this->execute("
-            update person
-            set deleted_at = current_timestamp()
-            where 
-                nik = '$nik'
-                and sk_number = '$sk_number'
-        ");
+        $res = $this->execQuery(
+            'UPDATE person SET deleted_at = CURRENT_TIMESTAMP()
+             WHERE nik = ? AND sk_number = ?',
+            [$nik, $sk_number]
+        );
 
         return $res;
     }
 
     public function getFingerprints(string $nik): array
     {
-        $fps = $this->query("select * from fingerprint where nik = '$nik'");
+        $fps = $this->query('SELECT * FROM fingerprint WHERE nik = ?', [$nik]);
 
         return $fps;
     }
@@ -788,22 +929,24 @@ class PersonModel extends Database
             return "Belum melakukan foto wajah";
         }
 
-        $this->execute("
-    INSERT IGNORE INTO trx_subject_status(nik, status_id, is_done)
-    VALUES 
-    ('$nik','REG',1),
-    ('$nik','DOC-VERIFY',1),
-    ('$nik','AGR-DISC',0),
-    ('$nik','SIGN-UTL',0),
-    ('$nik','CERT-ACQ',0)
-");
+        $this->execQuery(
+            'INSERT IGNORE INTO trx_subject_status(nik, status_id, is_done)
+             VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)',
+            [
+                $nik, 'REG', '1',
+                $nik, 'DOC-VERIFY', '1',
+                $nik, 'AGR-DISC', '0',
+                $nik, 'SIGN-UTL', '0',
+                $nik, 'CERT-ACQ', '0',
+            ]
+        );
         $trx = $this->query("
         SELECT tss.status_id, ms.name, ms.`order`, tss.is_done
         FROM trx_subject_status tss
         JOIN master_status ms ON ms.id = tss.status_id
-        WHERE ms.disabled = 0 AND tss.nik = '$nik'
+        WHERE ms.disabled = 0 AND tss.nik = ?
         ORDER BY ms.`order` ASC
-    ");
+    ", [$nik]);
 
         foreach ($trx as $row) {
             if ($row->is_done == 0) {
@@ -845,10 +988,10 @@ class PersonModel extends Database
             JOIN master_status ms ON tss.status_id = ms.id
         WHERE
             ms.disabled = 0
-            AND tss.nik = '$nik'
+            AND tss.nik = ?
         ORDER BY
             ms.`order` ASC
-    ");
+    ", [$nik]);
 
         foreach ($results as &$row) {
             foreach ($trx_status as $status) {

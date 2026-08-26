@@ -21,9 +21,13 @@ class DocumentModel extends Database
 
     private function fileExists(string $relativePath): bool
     {
-        $absolutePath = dirname(__FILE__) . '/../../../' . ltrim($relativePath, '/');
+        $uploadRoot = realpath(dirname(__FILE__) . '/../../../uploads');
+        $absolutePath = realpath(dirname(__FILE__) . '/../../../' . ltrim($relativePath, '/'));
 
-        return is_file($absolutePath);
+        return is_string($uploadRoot)
+            && is_string($absolutePath)
+            && strpos($absolutePath, $uploadRoot . DIRECTORY_SEPARATOR) === 0
+            && is_file($absolutePath);
     }
 
     public function get(string $nik): array
@@ -44,8 +48,8 @@ class DocumentModel extends Database
                 document doc
                 left join master_doc_type mdt on doc.`type` = mdt.id
             where 
-                nik = '$nik'
-        ");
+                nik = ?
+        ", [$nik]);
         // $docs = $this->query("
         //     select 
         //         doc.*
@@ -66,24 +70,17 @@ class DocumentModel extends Database
         ?string $description = null,
         ?string $extension = null
     ) {
-        $res = $this->execute("
-            insert into document(
-                nik,
-                filename,
-                type,
-                description,
-                file_path
-                " . (!empty($extension) ? ",extension" : "") . "
-            )
-            values(
-                '$nik',
-                '$filename',
-                '$documentType',
-                '$description',
-                '$savepath'
-                " . (!empty($extension) ? ",'$extension'" : "") . "
-            )
-        ");
+        $columns = ['nik', 'filename', 'type', 'description', 'file_path'];
+        $params = [$nik, $filename, $documentType, $description, $savepath];
+        if (!empty($extension)) {
+            $columns[] = 'extension';
+            $params[] = $extension;
+        }
+        $placeholders = implode(', ', array_fill(0, count($params), '?'));
+        $res = $this->execQuery(
+            'INSERT INTO document (' . implode(', ', $columns) . ") VALUES ({$placeholders})",
+            $params
+        );
 
         return $res;
     }

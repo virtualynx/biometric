@@ -90,5 +90,5 @@ try {
     echo json_encode($potensi);
 } catch (\Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => biometricPublicExceptionMessage($e, 'Gagal memuat data potensi.')]);
 }

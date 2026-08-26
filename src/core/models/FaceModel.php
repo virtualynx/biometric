@@ -3,8 +3,10 @@
 namespace biometric\src\core\models;
 
 use biometric\src\core\Database;
+use biometric\src\core\biometrics\FaceDescriptorMatcher;
 
 require_once(dirname(__FILE__) . "/../Database.php");
+require_once(dirname(__FILE__) . "/../biometrics/FaceDescriptorMatcher.php");
 
 class FaceModel extends Database
 {
@@ -12,6 +14,8 @@ class FaceModel extends Database
     const ID_TYPE_NIK = 'NIK';
     const ID_TYPE_PHONE = 'PHONE';
     const ID_TYPE_EMAIL = 'EMAIL';
+    private const MATCH_CACHE_REVISION_KEY = 'biometric.face.descriptor.revision';
+    private const MATCH_CACHE_TTL_SECONDS = 15;
 
     /** @var \mysqli */
     private $db;
@@ -24,30 +28,21 @@ class FaceModel extends Database
 
     public function get(string $person_id): array
     {
-        $faces = $this->query("
-            select * 
-            from face 
-            where 
-                person_id = '$person_id'
-        ");
+        $faces = $this->query('SELECT * FROM face WHERE person_id = ?', [$person_id]);
 
         return !empty($faces) ? $faces[0] : null;
     }
 
     public function list(array $person_ids): array
     {
-        $where_clause = '';
-
+        $sql = 'SELECT * FROM face';
+        $params = [];
         if (!empty($person_ids)) {
-            $where_in = implode("', '", $person_ids);
-            $where_clause = "where person_id in ('$where_in')";
+            $params = array_values($person_ids);
+            $sql .= ' WHERE person_id IN ('
+                . implode(',', array_fill(0, count($params), '?')) . ')';
         }
-
-        $faces = $this->query("
-            select * 
-            from face 
-            $where_clause
-        ");
+        $faces = $this->query($sql, $params);
 
         $result = [];
         if (!empty($faces)) {
@@ -117,36 +112,76 @@ class FaceModel extends Database
         return $result;
     }
 
+    public function matchActiveDescriptor(array $probe, ?string $sk_number = null): array
+    {
+        $faces = $this->matchingCandidates($sk_number);
+
+        return FaceDescriptorMatcher::match($probe, $faces);
+    }
+
+    private function matchingCandidates(?string $sk_number): array
+    {
+        if (!function_exists('apcu_fetch') || !function_exists('apcu_store')) {
+            return $this->listActiveDescriptors(null, $sk_number);
+        }
+
+        $revision = apcu_fetch(self::MATCH_CACHE_REVISION_KEY, $revisionFound);
+        if (!$revisionFound || !is_int($revision)) {
+            $revision = 1;
+            apcu_store(self::MATCH_CACHE_REVISION_KEY, $revision);
+        }
+
+        $scopeKey = $sk_number === null ? 'global' : hash('sha256', $sk_number);
+        $cacheKey = 'biometric.face.descriptor.' . $revision . '.' . $scopeKey;
+        $cached = apcu_fetch($cacheKey, $cacheFound);
+        if ($cacheFound && is_array($cached)) {
+            return $cached;
+        }
+
+        $faces = $this->listActiveDescriptors(null, $sk_number);
+        apcu_store($cacheKey, $faces, self::MATCH_CACHE_TTL_SECONDS);
+
+        return $faces;
+    }
+
+    public static function invalidateDescriptorCache(): void
+    {
+        if (!function_exists('apcu_inc') || !function_exists('apcu_store')) {
+            return;
+        }
+
+        $incremented = apcu_inc(self::MATCH_CACHE_REVISION_KEY, 1, $success);
+        if (!$success || !is_int($incremented)) {
+            apcu_store(self::MATCH_CACHE_REVISION_KEY, 2);
+        }
+    }
+
     public function enroll(
         string $person_id,
         string $id_type,
         string $encoding
     ) {
-        $existings = $this->query("
-            select * 
-            from face 
-            where
-                person_id = '$person_id'
-                and id_type = '$id_type'
-        ");
+        $existings = $this->query(
+            'SELECT * FROM face WHERE person_id = ? AND id_type = ?',
+            [$person_id, $id_type]
+        );
 
         $res = false;
         if (empty($existings)) {
-            $res = $this->execute("
-                insert into face(
-                    person_id,
-                    id_type,
-                    encoding
-                )
-                values(
-                    '$person_id',
-                    '$id_type',
-                    '$encoding'
-                )
-            ");
+            $res = $this->execQuery(
+                'INSERT INTO face (person_id, id_type, encoding) VALUES (?, ?, ?)',
+                [$person_id, $id_type, $encoding]
+            );
         } else {
             $existing_id = $existings[0]->face_id;
-            $res = $this->execute("update face set encoding = '$encoding' where face_id = $existing_id");
+            $res = $this->execQuery(
+                'UPDATE face SET encoding = ? WHERE face_id = ?',
+                [$encoding, $existing_id]
+            );
+        }
+
+        if ($res) {
+            self::invalidateDescriptorCache();
         }
 
         return $res;
@@ -154,7 +189,11 @@ class FaceModel extends Database
 
     public function delete(string $face_id)
     {
-        $res = $this->execute("delete from face where face_id = '$face_id'");
+        $res = $this->execQuery('DELETE FROM face WHERE face_id = ?', [$face_id]);
+
+        if ($res) {
+            self::invalidateDescriptorCache();
+        }
 
         return $res;
     }

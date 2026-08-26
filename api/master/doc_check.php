@@ -11,6 +11,6 @@ try{
     $res = $db->query("select * from master_doc_type where disabled = 0 order by `order`");
     echo json_encode($res);
 }catch(\Exception $e){
-    echo $e->getMessage();
-    exit;
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Gagal memuat tipe dokumen.']);
 }

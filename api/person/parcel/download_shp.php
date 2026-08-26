@@ -7,8 +7,14 @@ require_once(dirname(__FILE__) . "/../../../src/core/models/FileUploadModel.php"
 use biometric\src\core\models\FileUploadModel;
 use biometric\src\core\models\SubjectLandParcelModel;
 
-$nik = $_GET['nik'] ?? null;
-$parcelId = !empty($_GET['parcel_id']) ? (int) $_GET['parcel_id'] : 0;
+$jsonInput = json_decode((string) file_get_contents('php://input'), true);
+$input = array_replace(
+    is_array($_GET) ? $_GET : [],
+    is_array($_POST) ? $_POST : [],
+    is_array($jsonInput) ? $jsonInput : []
+);
+$nik = $input['nik'] ?? null;
+$parcelId = !empty($input['parcel_id']) ? (int) $input['parcel_id'] : 0;
 
 if (empty($nik) || $parcelId <= 0) {
     http_response_code(400);
@@ -35,5 +41,5 @@ try {
     $upload->downloadFile($file->filename, $file->file_path);
 } catch (\Throwable $e) {
     http_response_code(500);
-    echo $e->getMessage();
+    echo json_encode(['status' => 'error', 'message' => 'Gagal mengunduh SHP.']);
 }

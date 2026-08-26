@@ -47,12 +47,9 @@ class QueueModel extends Database{
     public function add($prefix, $nik): stdClass{
         $queue_no = 0;
 
-        $queues = $this->query("
-            select * 
-            from queue 
-            where queue_prefix = '$prefix'
-            order by queue_no DESC 
-            limit 1"
+        $queues = $this->queryPrepared(
+            'SELECT * FROM queue WHERE queue_prefix = ? ORDER BY queue_no DESC LIMIT 1',
+            [$prefix]
         );
 
         if(count($queues)>0){
@@ -61,38 +58,20 @@ class QueueModel extends Database{
         
         $queue_no++;
 
-        $res = $this->execute("
-            insert into queue(
-                queue_prefix,
-                queue_no,
-                nik,
-                status
-            )
-            values(
-                '$prefix',
-                $queue_no,
-                '$nik',
-                '".self::STATUS_PENDING."'
-            )
-        ");
+        $res = $this->executePrepared(
+            'INSERT INTO queue (queue_prefix, queue_no, nik, status) VALUES (?, ?, ?, ?)',
+            [$prefix, (string) $queue_no, $nik, self::STATUS_PENDING]
+        );
 
         $lastId = $this->getLastInsertedId();
 
-        $queues = $this->query("
-            select * 
-            from queue 
-            where queue_id = $lastId
-        ");
+        $queues = $this->queryPrepared('SELECT * FROM queue WHERE queue_id = ?', [(string) $lastId]);
 
         return count($queues)>0? $queues[0]: null;
     }
 
     public function find($queue_id){
-        $queues = $this->query("
-            select * 
-            from queue 
-            where queue_id = $queue_id
-        ");
+        $queues = $this->queryPrepared('SELECT * FROM queue WHERE queue_id = ?', [(string) $queue_id]);
 
         if(count($queues)>0){
             $result = json_decode(json_encode($queues[0]), true);
@@ -107,17 +86,22 @@ class QueueModel extends Database{
     }
 
     public function findByNik($nik, $status = []){
-        $where_status = '';
+        $sql = 'SELECT * FROM queue WHERE nik = ?';
+        $params = [$nik];
         if(count($status)>0){
-            $where_status = " and status in ('".implode("', '", $status)."')";
+            $allowedStatuses = [
+                self::STATUS_PENDING,
+                self::STATUS_PULLED,
+                self::STATUS_PROCESS,
+                self::STATUS_COMPLETED,
+            ];
+            $status = array_values(array_intersect($status, $allowedStatuses));
+            if ($status !== []) {
+                $sql .= ' AND status IN (' . implode(',', array_fill(0, count($status), '?')) . ')';
+                $params = array_merge($params, $status);
+            }
         }
-        $queues = $this->query("
-            select * 
-            from queue 
-            where 
-                nik = '$nik'
-                $where_status
-        ");
+        $queues = $this->queryPrepared($sql, $params);
 
         if(count($queues)>0){
             $result = json_decode(json_encode($queues[0]), true);
@@ -132,17 +116,12 @@ class QueueModel extends Database{
     }
 
     public function pullQueue(string $prefix){
-        $queues = $this->query("
-            select * 
-            from queue 
-            where 
-                queue_prefix = '$prefix'
-                and status = '".self::STATUS_PENDING."'
-            order by 
-                created_at asc,
-                updated_at desc
-            limit 1
-        ");
+        $queues = $this->queryPrepared(
+            'SELECT * FROM queue
+             WHERE queue_prefix = ? AND status = ?
+             ORDER BY created_at ASC, updated_at DESC LIMIT 1',
+            [$prefix, self::STATUS_PENDING]
+        );
 
         $result = null;
 
@@ -159,14 +138,10 @@ class QueueModel extends Database{
     }
 
     public function process($queue_id): bool{
-        $queues = $this->query("
-            select * 
-            from queue 
-            where 
-                queue_id = '$queue_id'
-                and status = '".self::STATUS_PULLED."'
-            limit 1
-        ");
+        $queues = $this->queryPrepared(
+            'SELECT * FROM queue WHERE queue_id = ? AND status = ? LIMIT 1',
+            [(string) $queue_id, self::STATUS_PULLED]
+        );
 
         if(count($queues)>0){
             $res = $this->updateStatus($queue_id, self::STATUS_PROCESS);
@@ -186,13 +161,19 @@ class QueueModel extends Database{
     }
 
     public function updateStatus($queue_id, $status){
-        $res = $this->execute("
-            update queue
-            set
-                status = '$status'
-            where
-                queue_id = $queue_id
-        ");
+        $allowedStatuses = [
+            self::STATUS_PENDING,
+            self::STATUS_PULLED,
+            self::STATUS_PROCESS,
+            self::STATUS_COMPLETED,
+        ];
+        if (!in_array($status, $allowedStatuses, true)) {
+            throw new \InvalidArgumentException('Invalid queue status');
+        }
+        $res = $this->executePrepared(
+            'UPDATE queue SET status = ? WHERE queue_id = ?',
+            [$status, (string) $queue_id]
+        );
 
         return $res;
     }

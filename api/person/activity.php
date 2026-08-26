@@ -39,56 +39,63 @@ try{
     ensureVerifierColumns($db);
 
     $acts = $_POST['acts'];
-    $verifierName = !empty($_POST['verifier_name']) ? addslashes(trim($_POST['verifier_name'])) : null;
-    $verifierEmail = !empty($_POST['verifier_email']) ? addslashes(trim($_POST['verifier_email'])) : null;
+    $verifierName = !empty($_POST['verifier_name']) ? trim($_POST['verifier_name']) : null;
+    $verifierEmail = !empty($_POST['verifier_email']) ? trim($_POST['verifier_email']) : null;
 
     foreach($acts as $act){
         $act_id = $act['act_id'];
         $value = intval(filter_var($act['value'], FILTER_VALIDATE_BOOLEAN));
-        $verifierNameSql = $value === 1 && !empty($verifierName)
-            ? "'" . $verifierName . "'"
-            : "NULL";
-        $verifierEmailSql = $value === 1 && !empty($verifierEmail)
-            ? "'" . $verifierEmail . "'"
-            : "NULL";
-        $verifiedAtSql = $value === 1 ? "NOW()" : "NULL";
+        $activeVerifierName = $value === 1 ? $verifierName : null;
+        $activeVerifierEmail = $value === 1 ? $verifierEmail : null;
     
-        $existings = $db->query("
-            select *
-            from trx_subject_status
-            where
-                nik = '$nik'
-                and status_id = '$act_id'
-        ");
+        $existings = $db->queryPrepared(
+            'SELECT * FROM trx_subject_status WHERE nik = ? AND status_id = ?',
+            [$nik, $act_id]
+        );
         $existing = null;
         if(count($existings) > 0){
             $existing = $existings[0];
         }
 
         if(empty($existing)){
-            $res = $db->execute("
-                insert into trx_subject_status(nik, status_id, is_done, verifier_name, verifier_email, verified_at)
-                values('$nik', '$act_id', $value, $verifierNameSql, $verifierEmailSql, $verifiedAtSql)
-            ");
+            $res = $db->executePrepared(
+                'INSERT INTO trx_subject_status
+                    (nik, status_id, is_done, verifier_name, verifier_email, verified_at)
+                 VALUES (?, ?, ?, ?, ?, IF(? = 1, NOW(), NULL))',
+                [
+                    $nik,
+                    $act_id,
+                    (string) $value,
+                    $activeVerifierName,
+                    $activeVerifierEmail,
+                    (string) $value,
+                ]
+            );
         }else{
-            $res = $db->execute("
-                update trx_subject_status set
-                    is_done = $value,
-                    verifier_name = $verifierNameSql,
-                    verifier_email = $verifierEmailSql,
-                    verified_at = $verifiedAtSql
-                where
-                    nik = '$nik'
-                    and status_id = '$act_id'
-            ");
+            $res = $db->executePrepared(
+                'UPDATE trx_subject_status SET
+                    is_done = ?,
+                    verifier_name = ?,
+                    verifier_email = ?,
+                    verified_at = IF(? = 1, NOW(), NULL)
+                 WHERE nik = ? AND status_id = ?',
+                [
+                    (string) $value,
+                    $activeVerifierName,
+                    $activeVerifierEmail,
+                    (string) $value,
+                    $nik,
+                    $act_id,
+                ]
+            );
         }
     }
     
     $db->endTransaction();
 }catch(\Exception $e){
     $db->rollbackTransaction();
-    echo $e->getMessage();
-    exit;
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Gagal memperbarui tahapan subjek.']);
 }
 
 echo 'success';

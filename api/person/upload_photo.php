@@ -29,8 +29,13 @@ if (empty($input['photo'])) {
     exit;
 }
 
-$nik         = $input['nik'];
-$desc        = $input['description'] ?? null;
+$nik         = is_scalar($input['nik']) ? trim((string) $input['nik']) : '';
+if (preg_match('/^[A-Za-z0-9_-]{1,64}$/D', $nik) !== 1) {
+    http_response_code(400);
+    echo json_encode(["status" => "error", "message" => "Invalid NIK"]);
+    exit;
+}
+$desc        = isset($input['description']) ? substr(trim((string) $input['description']), 0, 500) : null;
 $filename    = $input['filename'] ?? ("Dokumentasi-RA-" . date("d-m-Y-His") . rand(100, 999) . ".jpeg");
 $is_base64   = filter_var($input['is_base64'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
@@ -54,7 +59,14 @@ $photoData = $input['photo'];
 // Upload file base64
 try {
     $fu = new FileUploadModel();
-    $filedata = $fu->upload($photoData, $filename, $targetPath, true, $is_base64);
+    $filedata = $fu->upload(
+        $photoData,
+        $filename,
+        $targetPath,
+        true,
+        $is_base64,
+        FileUploadModel::PURPOSE_IMAGE
+    );
 
     $phm = new PhotoModel();
     $phm->add(
@@ -79,10 +91,10 @@ try {
             "latlong" => $latlong
         ]
     ]);
-} catch (Exception $e) {
-    http_response_code(500);
+} catch (\Throwable $e) {
+    http_response_code(biometricPublicExceptionStatus($e));
     echo json_encode([
         "status" => "error",
-        "message" => $e->getMessage()
+        "message" => biometricPublicExceptionMessage($e, 'Gagal mengunggah foto.')
     ]);
 }

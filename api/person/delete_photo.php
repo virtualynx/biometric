@@ -61,7 +61,8 @@ if(!empty($existing)){
         $fum->deleteFile($existing->photo_path);
         $phm->delete($nik, $existing->filename);
     }catch(\Exception $e){
-        echo $e->getMessage();
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Gagal menghapus foto.']);
     }
 
     $phm->endTransaction();

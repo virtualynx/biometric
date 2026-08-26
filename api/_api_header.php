@@ -3,21 +3,35 @@
 use biometric\src\core\models\EnvFileModel;
 
 require_once(dirname(__FILE__)."/../src/core/models/EnvFileModel.php");
+require_once(dirname(__FILE__)."/_security_observability.php");
+require_once(dirname(__FILE__)."/_auth_keycloak.php");
+
+biometricSecurityBootstrap();
 
 function getClientOrigin(){
-    if(isset($_SERVER['HTTP_ORIGIN']) && !empty($_SERVER['HTTP_ORIGIN'])){
-        return $_SERVER['HTTP_ORIGIN'];
+    $origin = trim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
+    if ($origin === '') {
+        return '';
     }
-    
-    if(isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])){
-        $parsed = parse_url($_SERVER['HTTP_REFERER']);
-        if(isset($parsed['scheme']) && isset($parsed['host'])){
-            $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
-            return $parsed['scheme'] . '://' . $parsed['host'] . $port;
-        }
+
+    $parsed = parse_url($origin);
+    if (!is_array($parsed)) {
+        return '';
     }
-    
-    return "";
+    $scheme = strtolower((string) ($parsed['scheme'] ?? ''));
+    $host = strtolower((string) ($parsed['host'] ?? ''));
+    if (
+        !in_array($scheme, ['http', 'https'], true) ||
+        $host === '' ||
+        isset($parsed['user']) ||
+        isset($parsed['pass']) ||
+        (isset($parsed['path']) && $parsed['path'] !== '')
+    ) {
+        return '';
+    }
+
+    $port = isset($parsed['port']) ? ':' . (int) $parsed['port'] : '';
+    return $scheme . '://' . $host . $port;
 }
 
 function generateCorsHeaders(){
@@ -35,9 +49,9 @@ function generateCorsHeaders(){
     $origin = getClientOrigin();
     $allow_origin = "";
     
-    if(in_array("*", $allowed_domains)){
-        $allow_origin = "*";
-    } else {
+    $uses_wildcard = in_array("*", $allowed_domains, true);
+
+    if(!$uses_wildcard){
         foreach($allowed_domains as $allowed){
             if(strpos($allowed, 'http') === 0){
                 if($origin === $allowed){
@@ -56,13 +70,17 @@ function generateCorsHeaders(){
 
     if(!empty($allow_origin)){
         header("Access-Control-Allow-Origin: $allow_origin");
+        header("Access-Control-Allow-Credentials: true");
     }
+    header("Vary: Origin", false);
     header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With");
-    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Allow-Headers: Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Request-ID");
+    header("Access-Control-Expose-Headers: X-Request-ID, Content-Disposition");
     header("Access-Control-Max-Age: 86400");
+
+    biometricSecurityRecordCorsDecision($origin, $allow_origin, $uses_wildcard);
     
-    if($_SERVER["REQUEST_METHOD"] == 'OPTIONS') {
+    if(($_SERVER["REQUEST_METHOD"] ?? '') == 'OPTIONS') {
         http_response_code(200);
         exit();
     }
@@ -70,3 +88,4 @@ function generateCorsHeaders(){
 
 header('Content-Type: application/json; charset=utf-8');
 generateCorsHeaders();
+keycloak_apply_auth_policy();

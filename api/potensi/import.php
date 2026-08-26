@@ -92,7 +92,9 @@ try {
     ]);
 } catch (\InvalidArgumentException $exception) {
     http_response_code(422);
-    echo json_encode(['error' => $exception->getMessage()]);
+    echo json_encode([
+        'error' => biometricPublicExceptionMessage($exception, 'Gagal mengimpor data potensi.')
+    ]);
 } catch (\Throwable $exception) {
     error_log('Potensi bulk import failed: ' . $exception->getMessage());
     http_response_code(500);

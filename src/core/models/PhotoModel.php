@@ -23,26 +23,24 @@ class PhotoModel extends Database
 
     private function fileExists(string $relativePath): bool
     {
-        $absolutePath = dirname(__FILE__) . '/../../../' . ltrim($relativePath, '/');
+        $uploadRoot = realpath(dirname(__FILE__) . '/../../../uploads');
+        $absolutePath = realpath(dirname(__FILE__) . '/../../../' . ltrim($relativePath, '/'));
 
-        return is_file($absolutePath);
+        return is_string($uploadRoot)
+            && is_string($absolutePath)
+            && strpos($absolutePath, $uploadRoot . DIRECTORY_SEPARATOR) === 0
+            && is_file($absolutePath);
     }
 
     public function get(string $nik, ?string $filename = null): array
     {
-        $where_filename = '';
-
+        $sql = 'SELECT * FROM photo WHERE nik = ?';
+        $params = [$nik];
         if (!empty($filename)) {
-            $where_filename = " and filename = '$filename'";
+            $sql .= ' AND filename = ?';
+            $params[] = $filename;
         }
-
-        $photos = $this->query("
-            select * 
-            from photo 
-            where 
-                nik = '$nik'
-                $where_filename
-        ");
+        $photos = $this->query($sql, $params);
 
         return $photos;
     }
@@ -59,12 +57,10 @@ class PhotoModel extends Database
         $existingBiometric = null;
 
         if ($photoType == self::PHOTO_TYPE_BIOMETRIC) {
-            $rs = $this->query("
-            SELECT * 
-            FROM photo 
-            WHERE nik = '$nik'
-              AND type = '$photoType'
-        ");
+            $rs = $this->query(
+                'SELECT * FROM photo WHERE nik = ? AND type = ?',
+                [$nik, $photoType]
+            );
 
             if (!empty($rs)) {
                 $existingBiometric = $rs[0];
@@ -73,39 +69,41 @@ class PhotoModel extends Database
 
         $res = false;
         if ($photoType == self::PHOTO_TYPE_BIOMETRIC && !empty($existingBiometric)) {
-            $res = $this->execute("
-            UPDATE photo
-            SET
-                filename = '$filename',
-                photo_path = '$savepath',
-                description = '$description'
-                " . (!empty($extension) ? ", extension = '$extension'" : "") . "
-                " . (!empty($latlong) ? ", latlong = '$latlong'" : "") . "
-            WHERE
-                nik = '$nik'
-                AND type = '$photoType'
-        ");
+            $sets = ['filename = ?', 'photo_path = ?', 'description = ?'];
+            $params = [$filename, $savepath, $description];
+            if (!empty($extension)) {
+                $sets[] = 'extension = ?';
+                $params[] = $extension;
+            }
+            if (!empty($latlong)) {
+                $sets[] = 'latlong = ?';
+                $params[] = $latlong;
+            }
+            $params[] = $nik;
+            $params[] = $photoType;
+            $res = $this->execQuery(
+                'UPDATE photo SET ' . implode(', ', $sets) . ' WHERE nik = ? AND type = ?',
+                $params
+            );
         } else {
             $columns = ['nik', 'filename', 'photo_path', 'type', 'description'];
-            $values = ["'$nik'", "'$filename'", "'$savepath'", "'$photoType'", "'$description'"];
+            $params = [$nik, $filename, $savepath, $photoType, $description];
 
             if (!empty($extension)) {
                 $columns[] = 'extension';
-                $values[] = "'$extension'";
+                $params[] = $extension;
             }
 
             if (!empty($latlong)) {
                 $columns[] = 'latlong';
-                $values[] = "'$latlong'";
+                $params[] = $latlong;
             }
 
-            $sql = sprintf(
-                "INSERT INTO photo (%s) VALUES (%s)",
-                implode(',', $columns),
-                implode(',', $values)
+            $placeholders = implode(', ', array_fill(0, count($params), '?'));
+            $res = $this->execQuery(
+                'INSERT INTO photo (' . implode(', ', $columns) . ") VALUES ({$placeholders})",
+                $params
             );
-
-            $res = $this->execute($sql);
         }
 
         return $res;
@@ -114,7 +112,10 @@ class PhotoModel extends Database
 
     public function delete(string $nik, string $filename)
     {
-        $res = $this->execute("delete from photo where nik = '$nik' and filename = '$filename'");
+        $res = $this->execQuery(
+            'DELETE FROM photo WHERE nik = ? AND filename = ?',
+            [$nik, $filename]
+        );
 
         return $res;
     }

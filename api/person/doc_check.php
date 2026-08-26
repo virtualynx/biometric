@@ -16,39 +16,34 @@ $value = filter_var($_POST['value'], FILTER_VALIDATE_BOOLEAN);
 
 $db = new Database();
 try{
-    $existings = $db->query("
-        select *
-        from trx_subject_doc_checklist
-        where
-            nik = '$nik'
-            and doc_checklist_id = '$doc_checklist_id'
-    ");
+    $existings = $db->queryPrepared(
+        'SELECT * FROM trx_subject_doc_checklist
+         WHERE nik = ? AND doc_checklist_id = ?',
+        [$nik, $doc_checklist_id]
+    );
     $existing = null;
     if(count($existings) > 0){
         $existing = $existings[0];
     }
     if($value == true){
         if(empty($existing)){
-            $res = $db->execute("
-                insert into trx_subject_doc_checklist(
-                    nik, doc_checklist_id
-                )
-                values('$nik', '$doc_checklist_id')
-            ");
+            $res = $db->executePrepared(
+                'INSERT INTO trx_subject_doc_checklist (nik, doc_checklist_id) VALUES (?, ?)',
+                [$nik, $doc_checklist_id]
+            );
         }
     }else{
         if(!empty($existing)){
-            $res = $db->execute("
-                delete from trx_subject_doc_checklist
-                where
-                    nik = '$nik'
-                    and doc_checklist_id = '$doc_checklist_id'
-            ");
+            $res = $db->executePrepared(
+                'DELETE FROM trx_subject_doc_checklist
+                 WHERE nik = ? AND doc_checklist_id = ?',
+                [$nik, $doc_checklist_id]
+            );
         }
     }
 }catch(\Exception $e){
-    echo $e->getMessage();
-    exit;
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Gagal memperbarui checklist dokumen.']);
 }
 
 echo 'success';

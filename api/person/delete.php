@@ -17,8 +17,7 @@ try{
     $person = $pm->delete($_POST['nik'], $_POST['sk_number']);
 }catch(\Exception $e){
     http_response_code(500);
-    echo $e->getMessage();
-    exit;
+    echo json_encode(['status' => 'error', 'message' => 'Gagal menghapus subjek.']);
 }
 
 echo json_encode(['status' => 'success']);

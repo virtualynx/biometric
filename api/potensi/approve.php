@@ -59,6 +59,6 @@ try {
 } catch (Throwable $e) {
     $db->rollback();
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => biometricPublicExceptionMessage($e, 'Gagal menyetujui data potensi.')]);
     exit;
 }

@@ -62,6 +62,6 @@ try {
     http_response_code(500);
     echo json_encode([
         "status" => "error",
-        "message" => $e->getMessage()
+        "message" => biometricPublicExceptionMessage($e, 'Gagal memuat status bidang.')
     ]);
 }

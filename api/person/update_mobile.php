@@ -37,7 +37,7 @@ try {
 } catch (\Exception $e) {
     if ($e->getMessage() !== 'Data not found') {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'message' => 'Gagal memeriksa data subjek.']);
         exit;
     }
     $person = new \stdClass();
@@ -47,6 +47,12 @@ try {
 }
 
 $oldNik = $input['nik'];
+$safeNikPattern = '/^[A-Za-z0-9_-]{1,32}$/D';
+if (preg_match($safeNikPattern, (string) $oldNik) !== 1) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Format NIK tidak valid.']);
+    exit;
+}
 $newNik = isset($input['new_nik']) && !empty($input['new_nik'])
     ? trim($input['new_nik'])
     : $oldNik;
@@ -67,27 +73,7 @@ if ($newNik !== $oldNik) {
     $pm->beginTransaction();
 
     try {
-        $updateNikSql = "UPDATE person SET nik = ? WHERE nik = ?";
-        $pm->execQuery($updateNikSql, [$newNik, $oldNik]);
-
-        $updateDocSql = "UPDATE document SET nik = ? WHERE nik = ?";
-        $dcm->execQuery($updateDocSql, [$newNik, $oldNik]);
-
-        $updatePhotoSql = "UPDATE photo SET nik = ? WHERE nik = ?";
-        $phm->execQuery($updatePhotoSql, [$newNik, $oldNik]);
-
-        try {
-            $updateFaceSql = "UPDATE face SET nik = ? WHERE nik = ?";
-            $fm->execQuery($updateFaceSql, [$newNik, $oldNik]);
-        } catch (\Exception $e) {
-            error_log("⚠️ Tidak ada data face untuk diupdate: " . $e->getMessage());
-        }
-
-        $updatePathDoc = "UPDATE document SET file_path = REPLACE(file_path, ?, ?) WHERE nik = ?";
-        $dcm->execQuery($updatePathDoc, ["person/$oldNik/", "person/$newNik/", $newNik]);
-
-        $updatePathPhoto = "UPDATE photo SET photo_path = REPLACE(photo_path, ?, ?) WHERE nik = ?";
-        $phm->execQuery($updatePathPhoto, ["person/$oldNik/", "person/$newNik/", $newNik]);
+        $pm->migrateNikReferences($oldNik, $newNik);
 
         $pm->commit();
 
@@ -97,7 +83,7 @@ if ($newNik !== $oldNik) {
             if (!@rename($oldFolder, $newFolder)) {
                 error_log("⚠️ Gagal rename folder dari {$oldFolder} ke {$newFolder}");
                 // fallback: copy dan hapus lama
-                @mkdir($newFolder, 0777, true);
+                @mkdir($newFolder, 0750, true);
                 foreach (glob($oldFolder . '/*') as $file) {
                     @rename($file, $newFolder . '/' . basename($file));
                 }
@@ -107,10 +93,14 @@ if ($newNik !== $oldNik) {
 
 
         $person->nik = $newNik;
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         $pm->rollback();
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Gagal update NIK: ' . $e->getMessage()]);
+        $status = $e instanceof \DomainException ? 409 : 500;
+        http_response_code($status);
+        echo json_encode([
+            'status' => 'error',
+            'message' => biometricPublicExceptionMessage($e, 'Gagal memperbarui NIK dan data terkait.'),
+        ]);
         exit;
     }
 }
@@ -139,7 +129,10 @@ function replacePhoto($fu, $model, $nik, $base64, $filename, $path, $type)
 {
     if (empty($base64)) return;
 
-    $filedata = $fu->upload($base64, $filename, $path, true, true);
+    $purpose = $model instanceof PhotoModel
+        ? FileUploadModel::PURPOSE_IMAGE
+        : FileUploadModel::PURPOSE_DOCUMENT;
+    $filedata = $fu->upload($base64, $filename, $path, true, true, $purpose);
 
     if (method_exists($model, 'deleteByType')) {
         $model->deleteByType($nik, $type);
@@ -197,7 +190,8 @@ if (!empty($input['photos']) && is_array($input['photos'])) {
                 $activeNik . "_documentation_" . time() . "_{$index}.jpeg",
                 'person/' . $activeNik . '/photos/',
                 true,
-                true
+                true,
+                FileUploadModel::PURPOSE_IMAGE
             );
             $phm->add(
                 $activeNik,
@@ -236,7 +230,10 @@ try {
     }
 } catch (\Exception $e) {
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode([
+        'status' => 'error',
+        'message' => biometricPublicExceptionMessage($e, 'Gagal memperbarui data subjek.')
+    ]);
     exit;
 }
 

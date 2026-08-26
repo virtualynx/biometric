@@ -106,7 +106,17 @@ function make_request($url, $data){
     
     $headers = array('Content-Type' => 'application/x-www-form-urlencoded');
     
-    $response = WpOrg\Requests\Requests::post($url, $headers, $data);
+    $response = WpOrg\Requests\Requests::post(
+        $url,
+        $headers,
+        $data,
+        [
+            'timeout' => 8,
+            'connect_timeout' => 3,
+            'follow_redirects' => false,
+            'verify' => true,
+        ]
+    );
     return $response->body;
 }
 

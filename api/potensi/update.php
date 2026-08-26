@@ -86,6 +86,12 @@ try {
         exit;
     }
 
+    if (preg_match('/^[A-Za-z0-9_-]{1,32}$/D', $newNik) !== 1) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Format NIK tidak valid']);
+        exit;
+    }
+
     if ($useTransaction) {
         $pm->beginTransaction();
     }
@@ -126,7 +132,10 @@ try {
                 return;
             }
 
-            $filedata = $fu->upload($base64, $filename, $path, true, true);
+            $purpose = $model instanceof PhotoModel
+                ? FileUploadModel::PURPOSE_IMAGE
+                : FileUploadModel::PURPOSE_DOCUMENT;
+            $filedata = $fu->upload($base64, $filename, $path, true, true, $purpose);
 
             if (method_exists($model, 'deleteByType')) {
                 $model->deleteByType($nik, $type);
@@ -206,7 +215,7 @@ try {
             if (file_exists($oldFolder)) {
                 if (!@rename($oldFolder, $newFolder)) {
                     error_log("⚠️ Gagal rename folder potensi dari {$oldFolder} ke {$newFolder}");
-                    @mkdir($newFolder, 0777, true);
+                    @mkdir($newFolder, 0750, true);
                     foreach (glob($oldFolder . '/*') as $file) {
                         @rename($file, $newFolder . '/' . basename($file));
                     }
@@ -219,7 +228,7 @@ try {
             $pm->rollbackTransaction();
         }
         http_response_code(500);
-        echo json_encode(['error' => 'Gagal update NIK potensi: ' . $e->getMessage()]);
+        echo json_encode(['error' => 'Gagal memperbarui NIK potensi.']);
         exit;
     }
     echo json_encode([
@@ -232,5 +241,5 @@ try {
     ]);
 } catch (\Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => biometricPublicExceptionMessage($e, 'Gagal memperbarui data potensi.')]);
 }

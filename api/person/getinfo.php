@@ -72,12 +72,13 @@ try{
     echo json_encode($person);
 }catch(\Exception $e){
     if($e->getCode() >= 900){
+        http_response_code(404);
         echo json_encode([
-            'status' => $e->getCode(),
-            'message' => $e->getMessage()
+            'status' => 404,
+            'message' => 'Data subjek tidak ditemukan.'
         ]);
     }else{
-        header("HTTP/1.1 500 Internal Server Error");
-        echo $e->getMessage();
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Gagal memuat data subjek.']);
     }
 }

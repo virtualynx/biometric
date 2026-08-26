@@ -30,7 +30,7 @@ if (json_last_error() !== JSON_ERROR_NONE || !is_array($input)) {
 if (empty($input)) {
     http_response_code(400);
     header('Content-Type: application/json');
-    echo json_encode(['error' => 'No input data received', 'raw' => $raw]);
+    echo json_encode(['error' => 'No input data received']);
     exit;
 }
 
@@ -38,8 +38,7 @@ if (empty($input['nik']) || empty($input['sk_number'])) {
     http_response_code(400);
     header('Content-Type: application/json');
     echo json_encode([
-        'error' => 'Missing NIK or sk_number',
-        'received_keys' => array_keys($input)
+        'error' => 'Missing NIK or sk_number'
     ]);
     exit;
 }
@@ -120,7 +119,14 @@ function saveBase64PhotoToTable(string $base64, string $nik, string $type, $fu, 
         $path = "person/{$nik}/photos";
     }
 
-    $result = $fu->upload($base64, $filename, $path, true, true);
+    $result = $fu->upload(
+        $base64,
+        $filename,
+        $path,
+        true,
+        true,
+        FileUploadModel::PURPOSE_IMAGE
+    );
 
     $desc = ucfirst($type) . " photo";
 
@@ -129,11 +135,26 @@ function saveBase64PhotoToTable(string $base64, string $nik, string $type, $fu, 
         VALUES (?, ?, ?, ?, ?, ?, NOW())
     ");
     if (method_exists($stmt, 'bind_param')) {
-        $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $result->path);
+        $stmt->bind_param(
+            "ssssss",
+            $nik,
+            $result->filename,
+            $result->extension,
+            $type,
+            $desc,
+            $result->path
+        );
         $stmt->execute();
         $stmt->close();
     } else {
-        $stmt->execute([$nik, $filename, $ext, $type, $desc, $result->path]);
+        $stmt->execute([
+            $nik,
+            $result->filename,
+            $result->extension,
+            $type,
+            $desc,
+            $result->path
+        ]);
     }
 
     return $result->path;
@@ -163,12 +184,27 @@ function saveBase64DocumentToTable(string $base64, string $nik, string $doctype,
     $filename = "{$doctype}_" . uniqid() . ".{$ext}";
     $path = "person/{$nik}/documents";
 
-    $result = $fu->upload($base64, $filename, $path, true, true);
+    $result = $fu->upload(
+        $base64,
+        $filename,
+        $path,
+        true,
+        true,
+        FileUploadModel::PURPOSE_DOCUMENT
+    );
 
     $desc = strtoupper($doctype) . " document";
     $stmt = $db->prepare("INSERT INTO document (nik, filename, extension, type, description, file_path, created_at)
                           VALUES (?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("ssssss", $nik, $filename, $ext, $doctype, $desc, $result->path);
+    $stmt->bind_param(
+        "ssssss",
+        $nik,
+        $result->filename,
+        $result->extension,
+        $doctype,
+        $desc,
+        $result->path
+    );
     $stmt->execute();
     $stmt->close();
 
@@ -199,11 +235,26 @@ function saveBase64PhotoToTableWithDesc(string $base64, string $nik, string $typ
     $filename = "{$type}_" . uniqid() . ".{$ext}";
     $path = "person/{$nik}/photos";
 
-    $result = $fu->upload($base64, $filename, $path, true, true);
+    $result = $fu->upload(
+        $base64,
+        $filename,
+        $path,
+        true,
+        true,
+        FileUploadModel::PURPOSE_IMAGE
+    );
 
     $stmt = $db->prepare("INSERT INTO photo (nik, filename, extension, type, description, photo_path, created_at)
                           VALUES (?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("ssssss", $nik, $filename, $ext, $type, $desc, $result->path);
+    $stmt->bind_param(
+        "ssssss",
+        $nik,
+        $result->filename,
+        $result->extension,
+        $type,
+        $desc,
+        $result->path
+    );
     $stmt->execute();
     $stmt->close();
 

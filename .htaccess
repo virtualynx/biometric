@@ -1,0 +1,21 @@
+<IfModule mod_authz_core.c>
+    <FilesMatch "(^\.|\.(?:env|ini|log|sql|sqlite|bak|backup|old|orig|swp|dist)$)">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Only the authenticated API surface is intended to be public.
+    RewriteRule ^(?:\.git|\.svn|src|html|fingerprint_service|scripts|database|vendor)(?:/|$) - [F,L,NC]
+    RewriteRule ^uploads(?:/|$) - [F,L,NC]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Permitted-Cross-Domain-Policies "none"
+</IfModule>

@@ -59,9 +59,31 @@ if (is_array($nikList)) {
 }
 
 if (!is_array($nikList) || empty($nikList)) {
+    http_response_code(400);
     echo json_encode([
         "status" => "error",
         "message" => "nik_list is required"
+    ]);
+    exit;
+}
+
+if (count($nikList) > 50) {
+    http_response_code(400);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Maksimal 50 subjek per permintaan"
+    ]);
+    exit;
+}
+
+$invalidNik = array_filter($nikList, static function (string $nik): bool {
+    return preg_match('/^[A-Za-z0-9_-]{1,64}$/D', $nik) !== 1;
+});
+if ($invalidNik !== []) {
+    http_response_code(400);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Format NIK tidak valid"
     ]);
     exit;
 }
@@ -71,6 +93,7 @@ try {
     $documents = $dm->getByNikList($nikList);
 
     $result = [];
+    $uploadRoot = realpath(__DIR__ . '/../../uploads');
 
     foreach ($documents as $doc) {
 
@@ -79,15 +102,20 @@ try {
             $result[$nik] = [];
         }
 
-        $path = __DIR__ . "/../../" . $doc["file_path"];
+        $path = realpath(__DIR__ . '/../../' . ltrim((string) $doc['file_path'], '/'));
 
-        if (!is_file($path)) {
-            error_log("FILE NOT FOUND: $path");
+        if (
+            !is_string($uploadRoot) ||
+            !is_string($path) ||
+            strpos($path, $uploadRoot . DIRECTORY_SEPARATOR) !== 0 ||
+            !is_file($path)
+        ) {
+            error_log('Document batch skipped an invalid or missing storage path');
             continue;
         }
 
         if (filesize($path) > 12 * 1024 * 1024) {
-            error_log("FILE TOO LARGE: $path");
+            error_log('Document batch skipped a file larger than 12 MB');
             $result[$nik][$doc["type"]] = [
                 "file_path" => $doc["file_path"],
                 "status" => "too_large"
@@ -106,7 +134,7 @@ try {
         }
 
         if (!in_array($mime, ["image/jpeg", "image/png"], true)) {
-            error_log("INVALID MIME: $mime ($path)");
+            error_log('Document batch skipped an unsupported MIME type');
             $result[$nik][$doc["type"]] = [
                 "file_path" => $doc["file_path"],
                 "mime_type" => $mime,
@@ -300,6 +328,6 @@ try {
     http_response_code(500);
     echo json_encode([
         "status"  => "error",
-        "message" => $e->getMessage()
+        "message" => biometricPublicExceptionMessage($e, 'Gagal memuat dokumen subjek.')
     ]);
 }

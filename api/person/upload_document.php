@@ -14,7 +14,8 @@ use biometric\src\core\models\PhotoModel;
 use biometric\src\core\models\QueueModel;
 use biometric\src\core\utils\Helper;
 
-if(empty($_POST['nik'])){
+$nik = is_scalar($_POST['nik'] ?? null) ? trim((string) $_POST['nik']) : '';
+if(preg_match('/^[A-Za-z0-9_-]{1,64}$/D', $nik) !== 1){
     http_response_code(400);
     echo 'Missing NIK';
     exit;
@@ -39,12 +40,12 @@ if($is_base64 && empty($_POST['filename'])){
 
 $doc_type = DocumentModel::DOCUMENT_TYPE_DOCUMENT;
 if(!empty($_POST['document_type'])){
-    $doc_type = $_POST['document_type'];
+    $doc_type = substr(trim((string) $_POST['document_type']), 0, 64);
 }
 
 $desc = null;
 if(!empty($_POST['description'])){
-    $desc = $_POST['description'];
+    $desc = substr(trim((string) $_POST['description']), 0, 500);
 }
 
 $files = null;
@@ -57,11 +58,18 @@ if(!$is_base64){
 }
 
 $fu = new FileUploadModel();
-$filedata = $fu->upload($files, $filename, "person/".$_POST['nik']."/documents/", true, $is_base64);
+$filedata = $fu->upload(
+    $files,
+    $filename,
+    "person/" . $nik . "/documents/",
+    true,
+    $is_base64,
+    FileUploadModel::PURPOSE_DOCUMENT
+);
 
 $dcm = new DocumentModel();
 try{
-    $dcm->add($_POST['nik'], $filedata->filename, $filedata->path, $doc_type, $desc, $filedata->extension);
+    $dcm->add($nik, $filedata->filename, $filedata->path, $doc_type, $desc, $filedata->extension);
 }catch(\mysqli_sql_exception $e){
     if(!Helper::startsWith($e->getMessage(), 'Duplicate entry')){
         throw $e;
